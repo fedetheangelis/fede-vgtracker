@@ -15,6 +15,7 @@ initializeDatabase();
     <link rel="stylesheet" href="assets/css/style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
@@ -39,6 +40,9 @@ initializeDatabase();
                 </button>
                 <button class="nav-btn" data-section="backlog">
                     <i class="fas fa-list"></i> Backlog
+                </button>
+                <button class="nav-btn" data-section="statistics">
+                    <i class="fas fa-chart-bar"></i> Statistiche
                 </button>
                 <button class="nav-btn admin-only" data-section="import">
                     <i class="fas fa-upload"></i> Importa TSV
@@ -97,6 +101,78 @@ initializeDatabase();
                     </div>
                 </div>
                 <div id="backlog-games" class="games-grid"></div>
+            </section>
+
+            <!-- Statistics Section -->
+            <section id="statistics-section" class="game-section">
+                <div class="section-header">
+                    <h2>Statistiche</h2>
+                </div>
+                <div id="statistics-content">
+                    <div class="stats-grid">
+                        <!-- Status Distribution -->
+                        <div class="stat-card">
+                            <h3>Distribuzione degli Stati</h3>
+                            <div class="chart-container">
+                                <canvas id="statusChart"></canvas>
+                            </div>
+                            <div class="chart-table-container">
+                                <div id="statusTable" class="chart-table"></div>
+                            </div>
+                        </div>
+
+                        <!-- Platform Distribution -->
+                        <div class="stat-card">
+                            <h3>Distribuzione delle Piattaforme</h3>
+                            <div class="chart-container">
+                                <canvas id="platformChart"></canvas>
+                            </div>
+                            <div class="chart-table-container">
+                                <div id="platformTable" class="chart-table"></div>
+                            </div>
+                        </div>
+
+                        <!-- Difficulty Distribution -->
+                        <div class="stat-card">
+                            <h3>Distribuzione delle Difficoltà</h3>
+                            <div class="chart-container">
+                                <canvas id="difficultyChart"></canvas>
+                            </div>
+                            <div class="chart-table-container">
+                                <div id="difficultyTable" class="chart-table"></div>
+                            </div>
+                        </div>
+
+                        <!-- Played by Year -->
+                        <div class="stat-card full-width">
+                            <h3>Distribuzione degli Anni (prima volta giocato)</h3>
+                            <div class="chart-container" style="height: 400px;">
+                                <canvas id="playedByYearChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Top Difficult Games -->
+                        <div class="stat-card full-width">
+                            <h3>Top 15 Giochi Più Difficili</h3>
+                            <div class="chart-table-container">
+                                <table id="difficultGamesTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Posizione</th>
+                                            <th>Titolo</th>
+                                            <th>Difficoltà</th>
+                                            <th>Piattaforma</th>
+                                            <th>Stato</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="difficultGamesBody">
+                                        <!-- Will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <!-- Import Section -->

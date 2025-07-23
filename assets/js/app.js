@@ -146,9 +146,11 @@ function switchSection(section) {
     
     currentSection = section;
     
-    // Load games for the new section
+    // Load content for the selected section
     if (section === 'played' || section === 'backlog') {
         loadGames(section);
+    } else if (section === 'statistics') {
+        loadStatistics();
     }
 }
 
@@ -282,10 +284,10 @@ function createGameCard(game, section) {
         <div class="game-card" ${cardClickHandler} ${reviewTooltip} style="${cardCursor}">
             ${isAdmin ? `
             <div class="game-actions">
-                <button class="action-btn" onclick="event.stopPropagation(); moveGame(${game.id}, '${section === 'played' ? 'backlog' : 'played'}')
+                <button class="action-btn" onclick="event.stopPropagation(); moveGame(${game.id}, '${section === 'played' ? 'backlog' : 'played'}')" title="${section === 'played' ? 'Sposta in Backlog' : 'Sposta in Giocati'}">
                     <i class="fas fa-${section === 'played' ? 'list' : 'trophy'}"></i>
                 </button>
-                <button class="action-btn" onclick="event.stopPropagation(); deleteGame(${game.id})" title="Elimina">
+                <button class="action-btn delete-btn" onclick="event.stopPropagation(); deleteGame(${game.id})" title="Elimina">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>` : ''}
@@ -391,7 +393,7 @@ function getStatusClass(status) {
         return 'status-droppato';
     } else if (statusLower.includes('completato') || statusLower === '100%') {
         return 'status-completato-100';
-    } else if (statusLower.includes('pausa')) {
+    } else if (statusLower.includes('pausa') || statusLower === 'in pausa') {
         return 'status-in-pausa';
     } else if (statusLower.includes('corso') || statusLower.includes('in corso')) {
         return 'status-playing'; // Fallback for 'in corso'
@@ -526,11 +528,15 @@ async function handleGameSubmit(e) {
             loadGames(gameData.section);
             showNotification(result.message, 'success');
         } else {
-            alert('Errore: ' + result.error);
+            const errorMsg = result && result.message ? result.message : 'Unknown error occurred';
+            console.error('Error loading statistics:', errorMsg);
+            alert('Errore nel caricamento delle statistiche: ' + errorMsg);
         }
     } catch (error) {
-        console.error('Error saving game:', error);
-        alert('Errore di connessione');
+        console.error('Error:', error);
+        alert('Errore: ' + error.message);
+    } finally {
+        console.log('Statistics loading completed');
     }
 }
 
@@ -1135,6 +1141,616 @@ async function logout() {
         console.error('Logout error:', error);
         showNotification('Errore durante il logout', 'error');
     }
+}
+
+// Status color mapping
+const statusColors = {
+    'Masterato/Platinato': '#8DB3E2',
+    'Completato (100%)': '#FFC000',
+    'Finito': '#92D050',
+    'IN PAUSA': '#afaffa',
+    'In Corso': '#D4EDBC',
+    'Droppato': '#FF7C80',
+    'Archiviato': '#FFF1B3',
+    'Online/Senza Fine': '#D9D9D9',
+    'Da Rigiocare': '#7EF1FF',
+    'DA RECUPERARE': '#E6E6E6'
+};
+
+// Chart default configuration
+Chart.defaults.color = '#ffffff';
+Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+Chart.defaults.font.family = '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+Chart.defaults.plugins.legend.labels.boxWidth = 16;
+Chart.defaults.plugins.legend.labels.padding = 12;
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.pointStyle = 'circle';
+
+// Impostazioni assi per i grafici a barre
+Chart.defaults.scale.grid.color = 'rgba(255, 255, 255, 0.1)';
+Chart.defaults.scale.ticks.color = '#ffffff';
+Chart.defaults.scale.title.color = '#ffffff';
+
+// Chart instances
+let statusChart = null;
+let platformChart = null;
+let difficultyChart = null;
+async function loadStatistics() {
+    try {
+        console.log('Loading statistics...');
+        const loadingElement = document.getElementById('loading');
+        if (loadingElement) {
+            loadingElement.style.display = 'block';
+        }
+        
+        const response = await fetch('api/statistics.php');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Received statistics data:', data);
+        
+        if (data.success) {
+            // Render all charts
+            if (data.data) {
+                console.log('Rendering charts with data:', {
+                    hasStatus: !!data.data.status,
+                    hasPlatform: !!data.data.platform,
+                    hasDifficulty: !!data.data.difficulty,
+                    hasTopGames: !!data.data.topDifficultGames,
+                    hasPlayedByYear: !!data.data.playedByYear
+                });
+                
+                if (data.data.status) renderStatusChart(data.data.status);
+                if (data.data.platform) renderPlatformChart(data.data.platform);
+                if (data.data.difficulty) renderDifficultyChart(data.data.difficulty);
+                if (data.data.topDifficultGames) renderDifficultGamesTable(data.data.topDifficultGames);
+                if (data.data.playedByYear) {
+                    console.log('Calling renderPlayedByYearChart with:', data.data.playedByYear);
+                    renderPlayedByYearChart(data.data.playedByYear);
+                } else {
+                    console.warn('No playedByYear data in response');
+                }
+            } else {
+                console.error('No data in response:', data);
+            }
+            // Also render the data tables
+            if (data.data) {
+                renderStatusTable(data.data.status);
+                renderPlatformTable(data.data.platform);
+                renderDifficultyTable(data.data.difficulty);
+            }
+        } else {
+            console.error('Failed to load statistics:', data.error);
+            showNotification('Errore nel caricamento delle statistiche', 'error');
+        }
+    } catch (error) {
+        console.error('Error loading statistics:', error);
+        showNotification('Errore di connessione', 'error');
+    }
+}
+
+// Render status distribution chart
+function renderStatusChart(statusData) {
+    const ctx = document.getElementById('statusChart').getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (statusChart) {
+        statusChart.destroy();
+    }
+    
+    // Debug log to see the raw status data
+    console.log('Raw status data:', statusData);
+    
+    const labels = statusData.map(item => item.status || 'Nessuno');
+    const data = statusData.map(item => item.count);
+    
+    // Map each status to its color, using the status value as it appears in the data
+    const backgroundColors = statusData.map(item => {
+        // Try to find the exact status in statusColors, case-insensitive
+        const statusKey = Object.keys(statusColors).find(
+            key => key.toLowerCase() === (item.status || '').toLowerCase()
+        );
+        
+        // Debug log for each status
+        console.log(`Status: "${item.status}", Found key: "${statusKey}", Color: ${statusKey ? statusColors[statusKey] : 'default'}`);
+        
+        return statusKey ? statusColors[statusKey] : '#666666';
+    });
+    
+    // Debug log the final mapping
+    console.log('Final color mapping:', labels.map((label, i) => `${label}: ${backgroundColors[i]}`));
+    
+    statusChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: backgroundColors,
+                borderColor: 'rgba(255, 255, 255, 0.5)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        color: '#ffffff',
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(22, 24, 28, 0.95)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#e0e0e0',
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1,
+                    padding: 12,
+                    displayColors: true,
+                    usePointStyle: true,
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((value / total) * 100);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            },
+            cutout: '60%',
+            animation: {
+                animateScale: true,
+                animateRotate: true
+            }
+        }
+    });
+}
+
+// Render platform distribution chart
+function renderPlatformChart(platformData) {
+    const ctx = document.getElementById('platformChart').getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (platformChart) {
+        platformChart.destroy();
+    }
+    
+    // Define the exact order of platforms we want to display
+    const platformOrder = [
+        'DIGITALE', 'FISICO', 'PS1', 'PS2', 'PS3', 'PS4', 'PS5', 
+        'PC', 'SWITCH', '3DS', 'GBA', 'WII'
+    ];
+    
+    // Create a map of platform counts for easy lookup
+    const platformMap = {};
+    platformData.forEach(item => {
+        platformMap[item.platform] = item.count;
+    });
+    
+    // Create labels and data in the specified order, including all platforms
+    const labels = [];
+    const data = [];
+    const backgroundColors = [];
+    const baseColor = '32, 205, 50'; // RGB of var(--accent-primary)
+    
+    platformOrder.forEach((platform, index) => {
+        labels.push(platform);
+        data.push(platformMap[platform] || 0);
+        
+        // Apply different opacity based on position for visual distinction
+        const opacity = 0.8 - (index * 0.05);
+        backgroundColors.push(`rgba(${baseColor}, ${opacity > 0.3 ? opacity : 0.3})`);
+    });
+    
+    platformChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Numero di giochi',
+                data: data,
+                backgroundColor: backgroundColors,
+                borderColor: 'rgba(50, 205, 50, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                        color: '#ffffff',
+                        stepSize: 1
+                    }
+                },
+                y: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        color: function(context) {
+                            // Make DIGITALE and FISICO bold
+                            const label = context.tick && context.tick.label;
+                            if (label === 'DIGITALE' || label === 'FISICO') {
+                                return '#FFFFFF';
+                            }
+                            return '#E0E0E0';
+                        },
+                        font: function(context) {
+                            // Make DIGITALE and FISICO bold
+                            const label = context.tick && context.tick.label;
+                            if (label === 'DIGITALE' || label === 'FISICO') {
+                                return { weight: 'bold' };
+                            }
+                            return { weight: 'normal' };
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(22, 24, 28, 0.95)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#e0e0e0',
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1,
+                    padding: 12,
+                    displayColors: false,
+                    callbacks: {
+                        label: function(context) {
+                            return `Giochi: ${context.raw}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Render difficulty distribution chart
+function renderDifficultyChart(difficultyData) {
+    const ctx = document.getElementById('difficultyChart').getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (difficultyChart) {
+        difficultyChart.destroy();
+    }
+    
+    // Sort difficulties numerically
+    const sortedDifficulties = [...difficultyData].sort((a, b) => a.difficulty - b.difficulty);
+    
+    const labels = sortedDifficulties.map(item => item.difficulty || '0');
+    const data = sortedDifficulties.map(item => item.count);
+    
+    // Generate colors based on difficulty (red to green gradient)
+    const difficultyColors = labels.map(difficulty => {
+        const value = parseInt(difficulty) / 10; // Normalize to 0-1
+        const r = Math.round(255 * (1 - value));
+        const g = Math.round(255 * value);
+        return `rgba(${r}, ${g}, 0, 0.7)`;
+    });
+    
+    difficultyChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: difficultyColors,
+                borderColor: difficultyColors.map(c => c.replace('0.7', '1')),
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'x',
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        color: '#ffffff'
+                    }
+                },
+                y: {
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                        color: '#ffffff',
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(22, 24, 28, 0.95)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#e0e0e0',
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1,
+                    padding: 12,
+                    displayColors: false
+                }
+            }
+        }
+    });
+}
+
+// Render difficult games table
+function renderDifficultGamesTable(games) {
+    const tbody = document.getElementById('difficultGamesBody');
+    tbody.innerHTML = '';
+    
+    games.forEach((game, index) => {
+        const tr = document.createElement('tr');
+        const statusClass = game.status ? game.status.toLowerCase().replace(/[\s/]+/g, '-') : '';
+        
+        tr.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${escapeHtml(game.title || 'N/A')}</td>
+            <td>${game.difficulty || '0'}/10</td>
+            <td>${escapeHtml(game.platform || 'N/A')}</td>
+            <td class="status-${statusClass}">${escapeHtml(game.status || 'N/A')}</td>
+        `;
+        
+        tbody.appendChild(tr);
+    });
+}
+
+// Render status distribution table
+function renderStatusTable(statusData) {
+    const container = document.getElementById('statusTable');
+    let html = '<table><tr><th>Stato</th><th>Conteggio</th><th>Percentuale</th></tr>';
+    
+    const total = statusData.reduce((sum, item) => sum + parseInt(item.count), 0);
+    
+    statusData.forEach(item => {
+        const status = item.status || 'Nessuno';
+        const count = parseInt(item.count);
+        const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+        const statusClass = status.toLowerCase().replace(/[\s/]+/g, '-');
+        
+        html += `
+            <tr>
+                <td class="status-${statusClass}">${escapeHtml(status)}</td>
+                <td>${count}</td>
+                <td>${percentage}%</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+        <tr class="total-row">
+            <td><strong>Totale</strong></td>
+            <td><strong>${total}</strong></td>
+            <td><strong>100%</strong></td>
+        </tr>
+    </table>`;
+    
+    container.innerHTML = html;
+}
+
+// Render platform distribution table
+function renderPlatformTable(platformData) {
+    const container = document.getElementById('platformTable');
+    let html = '<table><tr><th>Piattaforma</th><th>Conteggio</th><th>Percentuale</th></tr>';
+    
+    const total = platformData.reduce((sum, item) => sum + parseInt(item.count), 0);
+    
+    platformData.forEach(item => {
+        const platform = item.platform || 'Nessuna';
+        const count = parseInt(item.count);
+        const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+        
+        html += `
+            <tr>
+                <td>${escapeHtml(platform)}</td>
+                <td>${count}</td>
+                <td>${percentage}%</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+        <tr class="total-row">
+            <td><strong>Totale</strong></td>
+            <td><strong>${total}</strong></td>
+            <td><strong>100%</strong></td>
+        </tr>
+    </table>`;
+    
+    container.innerHTML = html;
+}
+
+// Render difficulty distribution table
+function renderDifficultyTable(difficultyData) {
+    const container = document.getElementById('difficultyTable');
+    let html = '<table><tr><th>Difficoltà</th><th>Conteggio</th><th>Percentuale</th></tr>';
+    
+    const total = difficultyData.reduce((sum, item) => sum + parseInt(item.count), 0);
+    
+    // Sort difficulties numerically
+    const sortedDifficulties = [...difficultyData].sort((a, b) => a.difficulty - b.difficulty);
+    
+    sortedDifficulties.forEach(item => {
+        const difficulty = item.difficulty || '0';
+        const count = parseInt(item.count);
+        const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+        
+        html += `
+            <tr>
+                <td>${difficulty}/10</td>
+                <td>${count}</td>
+                <td>${percentage}%</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+        <tr class="total-row">
+            <td><strong>Totale</strong></td>
+            <td><strong>${total}</strong></td>
+            <td><strong>100%</strong></td>
+        </tr>
+    </table>`;
+    
+    container.innerHTML = html;
+}
+
+// Render played by year chart
+function renderPlayedByYearChart(playedByYearData) {
+    console.log('Rendering played by year chart with data:', playedByYearData);
+    
+    const canvas = document.getElementById('playedByYearChart');
+    if (!canvas) {
+        console.error('Canvas element for playedByYearChart not found');
+        return;
+    }
+    
+    // Check if we have valid data
+    if (!playedByYearData || typeof playedByYearData !== 'object') {
+        console.warn('No valid data provided for played by year chart');
+        // Hide the chart container if no data
+        const container = canvas.closest('.chart-container');
+        if (container) {
+            container.style.display = 'none';
+        }
+        return;
+    }
+    
+    // Convert the tabular format to an array of objects
+    const years = [];
+    const counts = [];
+    
+    // Sort years in ascending order
+    const sortedYears = Object.keys(playedByYearData).sort((a, b) => parseInt(a) - parseInt(b));
+    
+    sortedYears.forEach(year => {
+        years.push(year);
+        counts.push(playedByYearData[year]);
+    });
+    
+    console.log('Processed years data:', { years, counts });
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (window.playedByYearChart && typeof window.playedByYearChart.destroy === 'function') {
+        console.log('Destroying existing playedByYearChart');
+        window.playedByYearChart.destroy();
+    }
+    
+    // We already processed the data at the beginning of the function
+    // Use the years and counts we already prepared
+    
+    // Create gradient for the line
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(50, 205, 50, 0.6)');
+    gradient.addColorStop(1, 'rgba(50, 205, 50, 0.1)');
+    
+    window.playedByYearChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: years,
+            datasets: [{
+                label: 'Giochi giocati',
+                data: counts,
+                borderColor: '#32cd32',
+                backgroundColor: gradient,
+                borderWidth: 2,
+                pointBackgroundColor: '#32cd32',
+                pointBorderColor: '#ffffff',
+                pointHoverRadius: 5,
+                pointHoverBackgroundColor: '#32cd32',
+                pointHoverBorderColor: '#ffffff',
+                pointHitRadius: 10,
+                pointBorderWidth: 2,
+                tension: 0.3,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    labels: {
+                        color: '#ffffff',
+                        font: {
+                            size: 14
+                        }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#e0e0e0',
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1,
+                    padding: 12,
+                    displayColors: false,
+                    callbacks: {
+                        label: function(context) {
+                            return `Giochi: ${context.raw}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        color: '#ffffff',
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        color: '#ffffff',
+                        font: {
+                            size: 12
+                        },
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
 }
 
 // Setup login form event listener

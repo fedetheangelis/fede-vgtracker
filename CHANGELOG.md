@@ -1,5 +1,37 @@
 # Changelog
 
+## [2025-07-24] - Versione 1.2.0
+
+### Aggiunte
+- **Sezione Statistiche**: Aggiunta una nuova sezione con grafici interattivi
+- **Grafico a Linee**: Implementato grafico per la distribuzione degli anni di prima giocata
+- **Grafici a Torta**: Aggiunti grafici per la distribuzione di stati, piattaforme e difficoltà
+- **Tabelle Dettagliate**: Incluso il dettaglio delle statistiche in formato tabellare
+
+### Modifiche
+- **Interfaccia Utente**:
+  - Aggiunto un nuovo tab "Statistiche" nel menu principale
+  - Migliorata la responsività dei grafici per dispositivi mobili
+  - Ottimizzato il layout della pagina delle statistiche
+  - Aggiunto stile personalizzato per le tabelle delle statistiche
+
+- **Grafici**:
+  - Implementato tema scuro per i grafici per coerenza con il design del sito
+  - Aggiunti tooltip informativi per una migliore leggibilità
+  - Ottimizzata la visualizzazione delle etichette sugli assi
+
+### Correzioni di Bug
+- Risolto problema di sovrapposizione del menu a scorrimento nella pagina delle statistiche
+- Corretta la gestione degli errori durante il caricamento delle statistiche
+- Risolto problema con la visualizzazione degli anni nel grafico di distribuzione
+- Migliorata la gestione dei dati mancanti nei grafici
+
+### Note Tecniche
+- Aggiunto endpoint `/api/statistics.php` per il recupero dei dati statistici
+- Implementata la logica per l'estrazione degli anni dal campo "prima_volta_giocato"
+- Aggiunto supporto per la visualizzazione di dati in formato tabellare
+- Ottimizzate le query SQL per il calcolo delle statistiche
+
 ## [2025-07-22] - Versione 1.1.0
 
 ### Aggiunte

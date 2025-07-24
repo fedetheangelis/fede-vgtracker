@@ -19,7 +19,15 @@ function getGames($section = 'played', $sortBy = 'title', $sortOrder = 'ASC') {
     
     $sortOrder = strtoupper($sortOrder) === 'DESC' ? 'DESC' : 'ASC';
     
-    $stmt = $pdo->prepare("SELECT * FROM games WHERE section = ? ORDER BY $sortBy $sortOrder");
+    // Special sorting for backlog section
+    if ($section === 'backlog') {
+        $query = "SELECT * FROM games WHERE section = ? ORDER BY COALESCE(priority, 0) DESC, title ASC";
+        $stmt = $pdo->prepare($query);
+    } else {
+        $query = "SELECT * FROM games WHERE section = ? ORDER BY $sortBy $sortOrder";
+        $stmt = $pdo->prepare($query);
+    }
+    
     $stmt->execute([$section]);
     
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -33,15 +41,24 @@ function addGame($data) {
                 ? implode(', ', $data['platform']) 
                 : (isset($data['platform']) ? $data['platform'] : '');
     
+    // Only include priority if we're adding to the backlog
+    $includePriority = (isset($data['section']) && $data['section'] === 'backlog') || 
+                      (isset($data['priority']) && $data['section'] === 'backlog');
+    
+    $priorityField = $includePriority ? 'priority, ' : '';
+    $priorityValue = $includePriority ? '?, ' : '';
+    
     $stmt = $pdo->prepare("
         INSERT INTO games (
             title, platform, playtime, total_score, aesthetic_score, ost_score,
             difficulty, status, trophy_percentage, platinum_date, replays,
-            first_played, last_finished, review, cover_url, section
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            first_played, last_finished, review, cover_url, section, 
+            $priorityField
+            created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     ");
     
-    return $stmt->execute([
+    $params = [
         $data['title'],
         $platforms,
         $data['playtime'] ?? null,
@@ -58,7 +75,14 @@ function addGame($data) {
         $data['review'] ?? null,
         $data['cover_url'] ?? null,
         $data['section'] ?? 'played'
-    ]);
+    ];
+    
+    // Add priority to params if needed
+    if ($includePriority) {
+        array_splice($params, 16, 0, [$data['priority'] ?? 0]);
+    }
+    
+    return $stmt->execute($params);
 }
 
 // Update a game
@@ -69,16 +93,23 @@ function updateGame($id, $data) {
                 ? implode(', ', $data['platform']) 
                 : (isset($data['platform']) ? $data['platform'] : '');
     
+    // Only include priority in the update if we're in the backlog section
+    $includePriority = (isset($data['section']) && $data['section'] === 'backlog') || 
+                      (isset($data['priority']) && $data['section'] === 'backlog');
+    
+    $priorityField = $includePriority ? ', priority = ?' : '';
+    
     $stmt = $pdo->prepare("
         UPDATE games SET 
             title = ?, platform = ?, playtime = ?, total_score = ?, aesthetic_score = ?, 
             ost_score = ?, difficulty = ?, status = ?, trophy_percentage = ?, 
             platinum_date = ?, replays = ?, first_played = ?, last_finished = ?, 
             review = ?, cover_url = ?, section = ?
+            $priorityField
         WHERE id = ?
     ");
     
-    return $stmt->execute([
+    $params = [
         $data['title'],
         $platforms,
         $data['playtime'] ?? null,
@@ -94,9 +125,18 @@ function updateGame($id, $data) {
         $data['last_finished'] ?? null,
         $data['review'] ?? null,
         $data['cover_url'] ?? null,
-        $data['section'] ?? 'played',
-        $id
-    ]);
+        $data['section'] ?? 'played'
+    ];
+    
+    // Add priority to params if needed
+    if ($includePriority) {
+        $params[] = $data['priority'] ?? 0;
+    }
+    
+    // Add ID as the last parameter
+    $params[] = $id;
+    
+    return $stmt->execute($params);
 }
 
 // Delete a game
@@ -109,7 +149,7 @@ function deleteGame($id) {
 // Get a single game by ID
 function getGame($id) {
     $pdo = getGameTrackerConnection();
-    $stmt = $pdo->prepare("SELECT * FROM games WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT *, COALESCE(priority, 0) as priority FROM games WHERE id = ?");
     $stmt->execute([$id]);
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
@@ -287,9 +327,18 @@ function importFromTSV($filePath) {
 // Move game between sections
 function moveGameToSection($id, $section) {
     $pdo = getGameTrackerConnection();
-    $stmt = $pdo->prepare("UPDATE games SET section = ? WHERE id = ?");
+    
+    // If moving to backlog, keep the current priority or set to default (0)
+    // If moving away from backlog, set priority to NULL
+    if ($section === 'backlog') {
+        $stmt = $pdo->prepare("UPDATE games SET section = ?, priority = COALESCE(priority, 0) WHERE id = ?");
+    } else {
+        $stmt = $pdo->prepare("UPDATE games SET section = ?, priority = NULL WHERE id = ?");
+    }
+    
     return $stmt->execute([$section, $id]);
 }
+
 // Find and update missing game covers with rate limiting
 function findAndUpdateMissingCovers() {
     $pdo = getGameTrackerConnection();

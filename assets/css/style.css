@@ -1004,3 +1004,45 @@ select:focus, input:focus, textarea:focus {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--accent-hover);
 }
+
+/* Priority styles */
+.game-priority {
+    margin: 10px 0;
+    padding: 5px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.priority-label {
+    font-weight: bold;
+    color: #ffffff;
+    white-space: nowrap;
+}
+
+.priority-select {
+    background-color: #2d3748;
+    color: #ffffff;
+    border: 1px solid #4a5568;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 14px;
+    cursor: pointer;
+    width: 60px;
+}
+
+.priority-select:hover {
+    border-color: #718096;
+}
+
+.priority-select:focus {
+    outline: none;
+    border-color: #63b3ed;
+    box-shadow: 0 0 0 1px #63b3ed;
+}
+
+.priority-value {
+    color: #e2e8f0;
+    font-style: italic;
+}

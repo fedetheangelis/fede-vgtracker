@@ -280,6 +280,19 @@ function createGameCard(game, section) {
     const cardClickHandler = isAdmin ? `onclick="openEditGameModal(${game.id})"` : '';
     const cardCursor = isAdmin ? 'cursor: pointer;' : 'cursor: default;';
     
+    // Add priority display for backlog games
+    const priorityDisplay = section === 'backlog' ? `
+        <div class="game-priority" onclick="event.stopPropagation();">
+            <span class="priority-label">Priorità:</span>
+            ${isAdmin ? `
+            <select class="priority-select" onchange="updateGamePriority(${game.id}, this.value)">
+                ${Array.from({length: 11}, (_, i) => 
+                    `<option value="${i}" ${game.priority == i ? 'selected' : ''}>${i}</option>`
+                ).join('')}
+            </select>` : 
+            `<span class="priority-value">${game.priority !== null ? game.priority : 'N/A'}</span>`}
+        </div>` : '';
+
     return `
         <div class="game-card" ${cardClickHandler} ${reviewTooltip} style="${cardCursor}">
             ${isAdmin ? `
@@ -318,6 +331,7 @@ function createGameCard(game, section) {
                     ${game.replays ? `<div class="game-detail"><strong>Replay:</strong> ${game.replays}</div>` : ''}
                     ${game.first_played ? `<div class="game-detail"><strong>Prima volta giocato:</strong> ${escapeHtml(game.first_played)}</div>` : ''}
                     ${game.last_finished ? `<div class="game-detail"><strong>Ultima volta finito:</strong> ${escapeHtml(game.last_finished)}</div>` : ''}
+                    ${priorityDisplay}
                 </div>
             </div>
         </div>
@@ -1900,6 +1914,33 @@ function renderPlayedByYearChart(playedByYearData) {
             }
         }
     });
+}
+
+// Function to update game priority
+async function updateGamePriority(gameId, priority) {
+    try {
+        const response = await fetch('api/games.php', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'update_priority',
+                id: gameId,
+                priority: priority
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            // Reload backlog to update the order
+            loadGames('backlog');
+            showNotification('Priorità aggiornata con successo!', 'success');
+        } else {
+            throw new Error('Errore durante l\'aggiornamento della priorità');
+        }
+    } catch (error) {
+        console.error('Error updating priority:', error);
+        showNotification('Errore durante l\'aggiornamento della priorità', 'error');
+    }
 }
 
 // Setup login form event listener

@@ -186,6 +186,16 @@ function handlePut() {
             http_response_code(400);
             echo json_encode(['error' => 'ID and game data required']);
         }
+    } elseif (isset($input['action']) && $input['action'] === 'update_priority') {
+        if (isset($input['id']) && isset($input['priority'])) {
+            $pdo = getGameTrackerConnection();
+            $stmt = $pdo->prepare("UPDATE games SET priority = ? WHERE id = ?");
+            $success = $stmt->execute([$input['priority'], $input['id']]);
+            echo json_encode(['success' => $success]);
+        } else {
+            http_response_code(400);
+            echo json_encode(['error' => 'ID and priority required']);
+        }
     } else {
         http_response_code(400);
         echo json_encode(['error' => 'Invalid action']);

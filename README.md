@@ -1,9 +1,33 @@
 # Changelog
 
-## [2025-07-24] - Versione 1.2.0
+## [2025-07-24] - Versione 1.4.0
 
 ### Aggiunte
-- **Sezione Statistiche**: Aggiunta una nuova sezione con grafici interattivi
+- **Sistema di Priorità per Backlog**: Dopo 4 ore buttate e 2 rollback,Implementata la possibilità di impostare priorità per i giochi nel backlog
+- **Ordinamento Automatico**: I giochi nel backlog vengono ora ordinati automaticamente per priorità (dal più alto al più basso) e poi per titolo
+- **Interfaccia Utente**: Aggiunto selettore di priorità nella pagina del backlog
+- **API**: Aggiunto endpoint per l'aggiornamento della priorità
+
+### Modifiche
+- **Database**: Aggiunta colonna `priority` alla tabella `games`
+- **Backend**: Aggiornate le funzioni di gestione giochi per supportare la priorità
+- **Frontend**: Migliorata la gestione degli aggiornamenti in tempo reale delle priorità
+
+### Correzioni di Bug
+- Risolto problema di aggiornamento priorità che causava errori di parsing JSON
+- Corretta la gestione della priorità durante lo spostamento dei giochi tra le sezioni
+- Migliorata la gestione dei valori di default per la priorità
+
+### Note Tecniche
+- La priorità è un numero intero che va da 0 (bassa) a 10 (alta)
+- I giochi con priorità più alta appaiono in cima alla lista del backlog
+- La priorità viene mantenuta solo per i giochi nella sezione backlog
+
+## [2025-07-24] - Versione 1.3.0
+
+### Aggiunte
+- **Istogramma Voti**: Aggiunto grafico a barre verticali per la distribuzione dei voti totali (raggruppati per intervalli di 10)
+- **Tabella Dettagliata Voti**: Inclusa tabella con conteggio e percentuale per ogni intervallo di voti
 - **Grafico a Linee**: Implementato grafico per la distribuzione degli anni di prima giocata
 - **Grafici a Torta**: Aggiunti grafici per la distribuzione di stati, piattaforme e difficoltà
 - **Tabelle Dettagliate**: Incluso il dettaglio delle statistiche in formato tabellare

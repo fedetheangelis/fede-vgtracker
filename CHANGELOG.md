@@ -1,9 +1,10 @@
 # Changelog
 
-## [2025-07-24] - Versione 1.2.0
+## [2025-07-24] - Versione 1.3.0
 
 ### Aggiunte
-- **Sezione Statistiche**: Aggiunta una nuova sezione con grafici interattivi
+- **Istogramma Voti**: Aggiunto grafico a barre verticali per la distribuzione dei voti totali (raggruppati per intervalli di 10)
+- **Tabella Dettagliata Voti**: Inclusa tabella con conteggio e percentuale per ogni intervallo di voti
 - **Grafico a Linee**: Implementato grafico per la distribuzione degli anni di prima giocata
 - **Grafici a Torta**: Aggiunti grafici per la distribuzione di stati, piattaforme e difficoltà
 - **Tabelle Dettagliate**: Incluso il dettaglio delle statistiche in formato tabellare

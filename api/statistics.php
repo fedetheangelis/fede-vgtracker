@@ -109,6 +109,54 @@ function getTopDifficultGames($pdo, $limit = 15) {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+// Function to get vote distribution in bins of 10
+function getVoteDistribution($pdo) {
+    try {
+        // Initialize bins from 0 to 100 in steps of 10
+        $bins = array_fill(0, 11, 0); // 0, 10, 20, ..., 100
+        
+        // Get all total_scores that are not null
+        $stmt = $pdo->query("
+            SELECT total_score 
+            FROM games 
+            WHERE total_score IS NOT NULL 
+            AND total_score >= 0 
+            AND total_score <= 100
+        ");
+        
+        $scores = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        // Count scores in each bin
+        foreach ($scores as $score) {
+            // Calculate the bin index (0-10)
+            $binIndex = min(floor($score / 10), 10);
+            $bins[$binIndex]++;
+        }
+        
+        // Format the result
+        $result = [];
+        for ($i = 0; $i <= 10; $i++) {
+            $rangeStart = $i * 10;
+            $rangeEnd = ($i === 10) ? 100 : ($rangeStart + 9);
+            $label = $i === 0 ? "0-9" : ($i === 10 ? "100" : "$rangeStart-$rangeEnd");
+            
+            $result[] = [
+                'range' => $label,
+                'start' => $rangeStart,
+                'end' => $rangeEnd,
+                'count' => $bins[$i]
+            ];
+        }
+        
+        return $result;
+        
+    } catch (Exception $e) {
+        error_log('Error in getVoteDistribution: ' . $e->getMessage());
+        error_log('Stack trace: ' . $e->getTraceAsString());
+        return [];
+    }
+}
+
 // Function to get games played by year distribution
 function getPlayedByYear($pdo) {
     try {
@@ -196,6 +244,7 @@ try {
     $difficultyDistribution = getDifficultyDistribution($pdo);
     $topDifficultGames = getTopDifficultGames($pdo);
     $playedByYear = getPlayedByYear($pdo);
+    $voteDistribution = getVoteDistribution($pdo);
     
     // Prepare response
     $response = [
@@ -205,7 +254,8 @@ try {
             'platform' => $platformDistribution,
             'difficulty' => $difficultyDistribution,
             'topDifficultGames' => $topDifficultGames,
-            'playedByYear' => $playedByYear
+            'playedByYear' => $playedByYear,
+            'voteDistribution' => $voteDistribution
         ]
     ];
     

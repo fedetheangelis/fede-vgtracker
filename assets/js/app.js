@@ -1199,7 +1199,8 @@ async function loadStatistics() {
                     hasPlatform: !!data.data.platform,
                     hasDifficulty: !!data.data.difficulty,
                     hasTopGames: !!data.data.topDifficultGames,
-                    hasPlayedByYear: !!data.data.playedByYear
+                    hasPlayedByYear: !!data.data.playedByYear,
+                    hasVoteDistribution: !!data.data.voteDistribution
                 });
                 
                 if (data.data.status) renderStatusChart(data.data.status);
@@ -1211,6 +1212,13 @@ async function loadStatistics() {
                     renderPlayedByYearChart(data.data.playedByYear);
                 } else {
                     console.warn('No playedByYear data in response');
+                }
+                if (data.data.voteDistribution) {
+                    console.log('Calling renderVoteDistributionChart with:', data.data.voteDistribution);
+                    renderVoteDistributionChart(data.data.voteDistribution);
+                    renderVoteDistributionTable(data.data.voteDistribution);
+                } else {
+                    console.warn('No voteDistribution data in response');
                 }
             } else {
                 console.error('No data in response:', data);
@@ -1586,6 +1594,43 @@ function renderPlatformTable(platformData) {
     container.innerHTML = html;
 }
 
+// Render vote distribution table
+function renderVoteDistributionTable(voteData) {
+    const container = document.getElementById('voteDistributionTable');
+    if (!container) {
+        console.error('Vote distribution table container not found');
+        return;
+    }
+
+    let html = '<table><tr><th>Range Voti</th><th>Conteggio</th><th>Percentuale</th></tr>';
+    
+    const total = voteData.reduce((sum, item) => sum + parseInt(item.count), 0);
+    
+    voteData.forEach(item => {
+        const range = item.range || 'N/D';
+        const count = parseInt(item.count);
+        const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+        
+        html += `
+            <tr>
+                <td>${escapeHtml(range)}</td>
+                <td>${count}</td>
+                <td>${percentage}%</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+        <tr class="total-row">
+            <td><strong>Totale</strong></td>
+            <td><strong>${total}</strong></td>
+            <td><strong>100%</strong></td>
+        </tr>
+    </table>`;
+    
+    container.innerHTML = html;
+}
+
 // Render difficulty distribution table
 function renderDifficultyTable(difficultyData) {
     const container = document.getElementById('difficultyTable');
@@ -1619,6 +1664,105 @@ function renderDifficultyTable(difficultyData) {
     </table>`;
     
     container.innerHTML = html;
+}
+
+// Render vote distribution chart
+function renderVoteDistributionChart(voteData) {
+    console.log('Rendering vote distribution chart with data:', voteData);
+    
+    const canvas = document.getElementById('voteDistributionChart');
+    if (!canvas) {
+        console.error('Canvas element for voteDistributionChart not found');
+        return;
+    }
+    
+    // Check if we have valid data
+    if (!Array.isArray(voteData) || voteData.length === 0) {
+        console.warn('No valid data provided for vote distribution chart');
+        // Hide the chart container if no data
+        const container = canvas.closest('.stat-card');
+        if (container) {
+            container.style.display = 'none';
+        }
+        return;
+    }
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (window.voteDistributionChart && typeof window.voteDistributionChart.destroy === 'function') {
+        console.log('Destroying existing voteDistributionChart');
+        window.voteDistributionChart.destroy();
+    }
+    
+    // Prepare data for the chart
+    const labels = voteData.map(item => item.range);
+    const counts = voteData.map(item => item.count);
+    
+    // Create gradient for the bars
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(78, 115, 223, 0.8)');
+    gradient.addColorStop(1, 'rgba(28, 200, 138, 0.2)');
+    
+    // Create the chart
+    window.voteDistributionChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Numero di giochi',
+                data: counts,
+                backgroundColor: gradient,
+                borderColor: 'rgba(78, 115, 223, 1)',
+                borderWidth: 1,
+                borderRadius: 4,
+                barPercentage: 0.8,
+                categoryPercentage: 0.8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Giochi: ${context.raw}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        color: '#fff',
+                        maxRotation: 0,
+                        autoSkip: false
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                        color: '#fff',
+                        precision: 0
+                    }
+                }
+            },
+            animation: {
+                duration: 1000,
+                easing: 'easeOutQuart'
+            }
+        }
+    });
 }
 
 // Render played by year chart
@@ -1694,6 +1838,11 @@ function renderPlayedByYearChart(playedByYearData) {
             }]
         },
         options: {
+            plugins: {
+                legend: {
+                    display: false 
+                }
+            },
             responsive: true,
             maintainAspectRatio: false,
             plugins: {

@@ -1,9 +1,9 @@
 fare in modo che lo spettatore possa cliccare sul gioco singolo per vedere le info approfondite senza modificarle
 add priorita nella schermata backlog
-add istogramma verticale distribuzione voti
 add tabelle top 15 giochi con piu ore
 add tabelle top 15 giochi 100% piu velocemente
 add filtraggio per piattaforma, stato, difficoltà ecc
 importare giochi da tsv backlog
 add lente di ingrandimento su giochi main e backlog per cercare
-il pallino giochi giocati dal grafico distr anni puo essere tolto
+il pallino giochi giocati dal grafico distr anni puo essere tolto - problemi riscontrati nel farlo
+controllare immagini custom

@@ -142,6 +142,17 @@ initializeDatabase();
                                 <div id="difficultyTable" class="chart-table"></div>
                             </div>
                         </div>
+                        
+                        <!-- Vote Distribution -->
+                        <div class="stat-card">
+                            <h3>Distribuzione Voti</h3>
+                            <div class="chart-container">
+                                <canvas id="voteDistributionChart"></canvas>
+                            </div>
+                            <div class="chart-table-container">
+                                <div id="voteDistributionTable" class="chart-table"></div>
+                            </div>
+                        </div>
 
                         <!-- Played by Year -->
                         <div class="stat-card full-width">

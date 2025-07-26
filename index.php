@@ -24,9 +24,15 @@ initializeDatabase();
                 <h1><i class="fas fa-gamepad"></i> Fede's Game Tracker</h1>
                 <div class="auth-section">
                     <div id="user-info" style="display: none;">
-                        <span id="username-display"></span>
-                        <button class="btn-secondary" onclick="logout()">
-                            <i class="fas fa-sign-out-alt"></i> Logout
+                        <input type="file" id="tsv-file" accept=".tsv,.txt" style="display: none;">
+                        <button class="btn-square btn-secondary admin-only" id="import-tsv-btn" onclick="document.getElementById('tsv-file').click()" title="Importa TSV">
+                            <i class="fas fa-upload"></i>
+                        </button>
+                        <button class="btn-square btn-secondary admin-only" id="find-missing-covers-btn" onclick="findMissingCovers()" title="Trova Cover Mancanti">
+                            <i class="fas fa-image"></i>
+                        </button>
+                        <button class="btn-square btn-secondary" onclick="logout()" title="Logout">
+                            <i class="fas fa-sign-out-alt"></i>
                         </button>
                     </div>
                     <button id="login-btn" class="btn-primary" onclick="openLoginModal()">
@@ -44,12 +50,7 @@ initializeDatabase();
                 <button class="nav-btn" data-section="statistics">
                     <i class="fas fa-chart-bar"></i> Statistiche
                 </button>
-                <button class="nav-btn admin-only" data-section="import">
-                    <i class="fas fa-upload"></i> Importa TSV
-                </button>
-                <button class="nav-btn admin-only" id="find-missing-covers-btn" onclick="findMissingCovers()">
-                    <i class="fas fa-search"></i> Trova Cover Mancanti
-                </button>
+
             </nav>
         </header>
 
@@ -59,9 +60,56 @@ initializeDatabase();
                 <div class="section-header">
                     <h2>Giochi Giocati</h2>
                     <div class="controls">
-                        <button class="btn-primary" onclick="openAddGameModal('played')">
-                            <i class="fas fa-plus"></i> Aggiungi Gioco
-                        </button>
+                        <div class="left-controls">
+                            <div class="search-container">
+                                <input type="text" id="search-played" placeholder="Cerca gioco..." onkeyup="filterGames('played')">
+                                <button class="btn-primary btn-square" onclick="document.getElementById('search-played').focus()" title="Cerca">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                            <button class="btn-primary btn-square" onclick="openAddGameModal('played')" title="Aggiungi Gioco">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="platform-filter">
+                                <button class="btn-square btn-secondary" onclick="togglePlatformFilter()" title="Filtra per piattaforma">
+                                    <i class="fas fa-gamepad"></i>
+                                </button>
+                                <div id="platform-filter-dropdown" class="platform-dropdown">
+                                    <div class="platform-options">
+                                        <label><input type="checkbox" name="platform" value="DIGITALE" onchange="filterByPlatform('played')"> DIGITALE</label>
+                                        <label><input type="checkbox" name="platform" value="FISICO" onchange="filterByPlatform('played')"> FISICO</label>
+                                        <label><input type="checkbox" name="platform" value="PS1" onchange="filterByPlatform('played')"> PS1</label>
+                                        <label><input type="checkbox" name="platform" value="PS2" onchange="filterByPlatform('played')"> PS2</label>
+                                        <label><input type="checkbox" name="platform" value="PS3" onchange="filterByPlatform('played')"> PS3</label>
+                                        <label><input type="checkbox" name="platform" value="PS4" onchange="filterByPlatform('played')"> PS4</label>
+                                        <label><input type="checkbox" name="platform" value="PS5" onchange="filterByPlatform('played')"> PS5</label>
+                                        <label><input type="checkbox" name="platform" value="PC" onchange="filterByPlatform('played')"> PC</label>
+                                        <label><input type="checkbox" name="platform" value="SWITCH" onchange="filterByPlatform('played')"> SWITCH</label>
+                                        <label><input type="checkbox" name="platform" value="3DS" onchange="filterByPlatform('played')"> 3DS</label>
+                                        <label><input type="checkbox" name="platform" value="GBA" onchange="filterByPlatform('played')"> GBA</label>
+                                        <label><input type="checkbox" name="platform" value="WII" onchange="filterByPlatform('played')"> WII</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="status-filter">
+                                <button class="btn-square btn-secondary" onclick="toggleStatusFilter()" title="Filtra per stato">
+                                    <i class="fas fa-filter"></i>
+                                </button>
+                                <div id="status-filter-dropdown" class="status-dropdown">
+                                    <div class="status-options">
+                                        <label><input type="checkbox" name="status" value="Masterato/Platinato" onchange="filterByStatus('played')"> Masterato/Platinato</label>
+                                        <label><input type="checkbox" name="status" value="Completato (100%)" onchange="filterByStatus('played')"> Completato (100%)</label>
+                                        <label><input type="checkbox" name="status" value="Finito" onchange="filterByStatus('played')"> Finito</label>
+                                        <label><input type="checkbox" name="status" value="In Pausa" onchange="filterByStatus('played')"> In Pausa</label>
+                                        <label><input type="checkbox" name="status" value="In Corso" onchange="filterByStatus('played')"> In Corso</label>
+                                        <label><input type="checkbox" name="status" value="Droppato" onchange="filterByStatus('played')"> Droppato</label>
+                                        <label><input type="checkbox" name="status" value="Archiviato" onchange="filterByStatus('played')"> Archiviato</label>
+                                        <label><input type="checkbox" name="status" value="Online/Senza Fine" onchange="filterByStatus('played')"> Online/Senza Fine</label>
+                                        <label><input type="checkbox" name="status" value="Da Recuperare" onchange="filterByStatus('played')"> Da Recuperare</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="sort-controls">
                             <select id="sort-played">
                                 <option value="title">Ordina per Titolo</option>
@@ -85,9 +133,56 @@ initializeDatabase();
                 <div class="section-header">
                     <h2>Backlog</h2>
                     <div class="controls">
-                        <button class="btn-primary" onclick="openAddGameModal('backlog')">
-                            <i class="fas fa-plus"></i> Aggiungi al Backlog
-                        </button>
+                        <div class="left-controls">
+                            <div class="search-container">
+                                <input type="text" id="search-backlog" placeholder="Cerca gioco..." onkeyup="filterGames('backlog')">
+                                <button class="btn-primary btn-square" onclick="document.getElementById('search-backlog').focus()" title="Cerca">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                            <button class="btn-primary btn-square" onclick="openAddGameModal('backlog')" title="Aggiungi al Backlog">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="platform-filter">
+                                <button class="btn-square btn-secondary" onclick="togglePlatformFilter('backlog')" title="Filtra per piattaforma">
+                                    <i class="fas fa-gamepad"></i>
+                                </button>
+                                <div id="platform-filter-dropdown-backlog" class="platform-dropdown">
+                                    <div class="platform-options">
+                                        <label><input type="checkbox" name="platform" value="DIGITALE" onchange="filterByPlatform('backlog')"> DIGITALE</label>
+                                        <label><input type="checkbox" name="platform" value="FISICO" onchange="filterByPlatform('backlog')"> FISICO</label>
+                                        <label><input type="checkbox" name="platform" value="PS1" onchange="filterByPlatform('backlog')"> PS1</label>
+                                        <label><input type="checkbox" name="platform" value="PS2" onchange="filterByPlatform('backlog')"> PS2</label>
+                                        <label><input type="checkbox" name="platform" value="PS3" onchange="filterByPlatform('backlog')"> PS3</label>
+                                        <label><input type="checkbox" name="platform" value="PS4" onchange="filterByPlatform('backlog')"> PS4</label>
+                                        <label><input type="checkbox" name="platform" value="PS5" onchange="filterByPlatform('backlog')"> PS5</label>
+                                        <label><input type="checkbox" name="platform" value="PC" onchange="filterByPlatform('backlog')"> PC</label>
+                                        <label><input type="checkbox" name="platform" value="SWITCH" onchange="filterByPlatform('backlog')"> SWITCH</label>
+                                        <label><input type="checkbox" name="platform" value="3DS" onchange="filterByPlatform('backlog')"> 3DS</label>
+                                        <label><input type="checkbox" name="platform" value="GBA" onchange="filterByPlatform('backlog')"> GBA</label>
+                                        <label><input type="checkbox" name="platform" value="WII" onchange="filterByPlatform('backlog')"> WII</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="status-filter">
+                                <button class="btn-square btn-secondary" onclick="toggleStatusFilter('backlog')" title="Filtra per stato">
+                                    <i class="fas fa-filter"></i>
+                                </button>
+                                <div id="status-filter-dropdown-backlog" class="status-dropdown">
+                                    <div class="status-options">
+                                        <label><input type="checkbox" name="status" value="Masterato/Platinato" onchange="filterByStatus('backlog')"> Masterato/Platinato</label>
+                                        <label><input type="checkbox" name="status" value="Completato (100%)" onchange="filterByStatus('backlog')"> Completato (100%)</label>
+                                        <label><input type="checkbox" name="status" value="Finito" onchange="filterByStatus('backlog')"> Finito</label>
+                                        <label><input type="checkbox" name="status" value="In Pausa" onchange="filterByStatus('backlog')"> In Pausa</label>
+                                        <label><input type="checkbox" name="status" value="In Corso" onchange="filterByStatus('backlog')"> In Corso</label>
+                                        <label><input type="checkbox" name="status" value="Droppato" onchange="filterByStatus('backlog')"> Droppato</label>
+                                        <label><input type="checkbox" name="status" value="Archiviato" onchange="filterByStatus('backlog')"> Archiviato</label>
+                                        <label><input type="checkbox" name="status" value="Online/Senza Fine" onchange="filterByStatus('backlog')"> Online/Senza Fine</label>
+                                        <label><input type="checkbox" name="status" value="Da Recuperare" onchange="filterByStatus('backlog')"> Da Recuperare</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="sort-controls">
                             <select id="sort-backlog">
                                 <option value="title">Ordina per Titolo</option>

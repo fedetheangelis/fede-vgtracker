@@ -48,15 +48,19 @@ function addGame($data) {
     $priorityField = $includePriority ? 'priority, ' : '';
     $priorityValue = $includePriority ? '?, ' : '';
     
-    $stmt = $pdo->prepare("
+    $sql = "
         INSERT INTO games (
             title, platform, playtime, total_score, aesthetic_score, ost_score,
             difficulty, status, trophy_percentage, platinum_date, replays,
-            first_played, last_finished, review, cover_url, section, 
-            $priorityField
-            created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-    ");
+            first_played, last_finished, review, cover_url, section" . 
+            ($includePriority ? ', priority' : '') . 
+            ", created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?" .
+            ($includePriority ? ', ?' : '') . 
+            ", NOW())
+    ";
+    
+    $stmt = $pdo->prepare($sql);
     
     $params = [
         $data['title'],

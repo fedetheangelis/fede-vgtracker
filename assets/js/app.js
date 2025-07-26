@@ -39,7 +39,6 @@ async function checkAuthStatus() {
 function updateUIForAuthStatus(user) {
     const loginBtn = document.getElementById('login-btn');
     const userInfo = document.getElementById('user-info');
-    const usernameDisplay = document.getElementById('username-display');
     const addGameButtons = document.querySelectorAll('button[onclick*="openAddGameModal"]');
     
     if (user.is_admin) {
@@ -48,8 +47,7 @@ function updateUIForAuthStatus(user) {
         
         // Show admin UI
         loginBtn.style.display = 'none';
-        userInfo.style.display = 'flex';
-        usernameDisplay.textContent = user.username || 'Admin';
+        if (userInfo) userInfo.style.display = 'flex';
         
         // Show add game buttons
         addGameButtons.forEach(btn => {
@@ -67,7 +65,7 @@ function updateUIForAuthStatus(user) {
         
         // Show guest UI
         loginBtn.style.display = 'inline-flex';
-        userInfo.style.display = 'none';
+        if (userInfo) userInfo.style.display = 'none';
         
         // Hide add game buttons
         addGameButtons.forEach(btn => {
@@ -217,6 +215,7 @@ function displayGames(games, section) {
 function createGameCard(game, section) {
     // Process platforms to handle DIGITALE/FISICO and other platforms
     const platforms = game.platform ? game.platform.split(',').map(p => p.trim()) : [];
+    const status = game.status || '';
     
     // Separate DIGITALE/FISICO from other platforms
     const specialPlatforms = [];
@@ -294,7 +293,7 @@ function createGameCard(game, section) {
         </div>` : '';
 
     return `
-        <div class="game-card" ${cardClickHandler} ${reviewTooltip} style="${cardCursor}">
+        <div class="game-card" data-platform="${game.platform || ''}" data-status="${game.status || ''}" ${cardClickHandler} ${reviewTooltip} style="${cardCursor}">
             ${isAdmin ? `
             <div class="game-actions">
                 <button class="action-btn" onclick="event.stopPropagation(); moveGame(${game.id}, '${section === 'played' ? 'backlog' : 'played'}')" title="${section === 'played' ? 'Sposta in Backlog' : 'Sposta in Giocati'}">
@@ -410,10 +409,117 @@ function getStatusClass(status) {
     } else if (statusLower.includes('pausa') || statusLower === 'in pausa') {
         return 'status-in-pausa';
     } else if (statusLower.includes('corso') || statusLower.includes('in corso')) {
-        return 'status-playing'; // Fallback for 'in corso'
+        return 'status-in-corso';
+    } else if (statusLower.includes('recuperare')) {
+        return 'status-da-recuperare';
+    } else if (statusLower.includes('rigiocare')) {
+        return 'status-da-rigiocare';
     }
     
     return '';
+}
+
+// Toggle platform filter dropdown
+function togglePlatformFilter(section = 'played') {
+    const dropdown = document.getElementById(`platform-filter-dropdown${section === 'played' ? '' : '-' + section}`);
+    dropdown.classList.toggle('show');
+    
+    // Close other dropdowns
+    document.querySelectorAll('.platform-dropdown').forEach(dd => {
+        if (dd !== dropdown) {
+            dd.classList.remove('show');
+        }
+    });
+}
+
+// Close platform dropdown when clicking outside
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('.platform-filter')) {
+        document.querySelectorAll('.platform-dropdown').forEach(dropdown => {
+            dropdown.classList.remove('show');
+        });
+    }
+    if (!event.target.closest('.status-filter')) {
+        document.querySelectorAll('.status-dropdown').forEach(dropdown => {
+            dropdown.classList.remove('show');
+        });
+    }
+});
+
+// Toggle status filter dropdown
+function toggleStatusFilter(section = 'played') {
+    const dropdown = document.getElementById(`status-filter-dropdown${section === 'played' ? '' : '-' + section}`);
+    dropdown.classList.toggle('show');
+    
+    // Close other dropdowns
+    document.querySelectorAll('.status-dropdown').forEach(dd => {
+        if (dd !== dropdown) {
+            dd.classList.remove('show');
+        }
+    });
+}
+
+// Filter games by selected platforms
+function filterByPlatform(section) {
+    const selectedPlatforms = Array.from(
+        document.querySelectorAll(`#${section === 'played' ? 'platform-filter-dropdown' : 'platform-filter-dropdown-backlog'} input[type="checkbox"]:checked`)
+    ).map(checkbox => checkbox.value);
+    
+    const selectedStatuses = Array.from(
+        document.querySelectorAll(`#${section === 'played' ? 'status-filter-dropdown' : 'status-filter-dropdown-backlog'} input[type="checkbox"]:checked`)
+    ).map(checkbox => checkbox.value);
+    
+    const games = document.querySelectorAll(`#${section}-games .game-card`);
+    
+    games.forEach(game => {
+        const gamePlatform = game.getAttribute('data-platform') || '';
+        const gameStatus = game.getAttribute('data-status') || '';
+        
+        const platformMatch = selectedPlatforms.length === 0 || 
+                           selectedPlatforms.some(platform => gamePlatform.includes(platform));
+                           
+        const statusMatch = selectedStatuses.length === 0 || 
+                          selectedStatuses.some(status => gameStatus === status);
+        
+        if (platformMatch && statusMatch) {
+            game.style.display = 'block';
+        } else {
+            game.style.display = 'none';
+        }
+    });
+    
+    // Also apply search filter if there's a search term
+    const searchTerm = document.getElementById(`search-${section}`).value.toLowerCase();
+    if (searchTerm) {
+        filterGames(section);
+    }
+}
+
+// Filter games by selected statuses
+function filterByStatus(section) {
+    // Just call filterByPlatform which now handles both platform and status filters
+    filterByPlatform(section);
+}
+
+function filterGames(section) {
+    const searchTerm = document.getElementById(`search-${section}`).value.toLowerCase();
+    const games = document.querySelectorAll(`#${section}-games .game-card`);
+    
+    games.forEach(game => {
+        const title = game.querySelector('.game-title').textContent.toLowerCase();
+        if (title.includes(searchTerm)) {
+            game.style.display = 'block';
+        } else {
+            game.style.display = 'none';
+        }
+    });
+}
+
+function filterAndSortGames(section) {
+    currentOrder[section] = currentOrder[section] === 'ASC' ? 'DESC' : 'ASC';
+    const icon = document.getElementById(`sort-icon-${section}`);
+    icon.className = currentOrder[section] === 'ASC' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+    loadGames(section, false);
 }
 
 function toggleSortOrder(section) {
@@ -432,6 +538,47 @@ function openAddGameModal(section) {
     // Set section in a hidden field or remember it
     document.getElementById('game-form').dataset.section = section;
     
+    // Update status dropdown based on section
+    const statusSelect = document.getElementById('game-status');
+    const currentStatus = statusSelect.value;
+    
+    // Clear existing options except the first one
+    while (statusSelect.options.length > 1) {
+        statusSelect.remove(1);
+    }
+    
+    // Common status options
+    const commonStatuses = [
+        'Masterato/Platinato',
+        'Completato (100%)',
+        'Finito',
+        'In Pausa',
+        'In Corso',
+        'Droppato',
+        'Archiviato',
+        'Online/Senza Fine'
+    ];
+    
+    // Add backlog-specific statuses
+    if (section === 'backlog') {
+        commonStatuses.push('Da Recuperare', 'Da Rigiocare');
+    }
+    
+    // Add all status options
+    commonStatuses.forEach(status => {
+        const option = document.createElement('option');
+        option.value = status;
+        option.textContent = status;
+        statusSelect.appendChild(option);
+    });
+    
+    // Restore previous selection if it still exists
+    if (currentStatus && Array.from(statusSelect.options).some(opt => opt.value === currentStatus)) {
+        statusSelect.value = currentStatus;
+    } else {
+        statusSelect.selectedIndex = 0;
+    }
+    
     document.getElementById('game-modal').classList.add('active');
 }
 
@@ -444,7 +591,52 @@ async function openEditGameModal(gameId) {
         const data = await response.json();
         
         if (data.success) {
+            // Set the section before populating the form
+            const section = data.game.section || 'played'; // Default to 'played' if section is not set
+            document.getElementById('game-form').dataset.section = section;
+            
+            // Populate the form with game data
             populateGameForm(data.game);
+            
+            // Now update the status dropdown based on the section
+            const statusSelect = document.getElementById('game-status');
+            const currentStatus = statusSelect.value;
+            
+            // Clear existing options except the first one
+            while (statusSelect.options.length > 1) {
+                statusSelect.remove(1);
+            }
+            
+            // Common status options
+            const commonStatuses = [
+                'Masterato/Platinato',
+                'Completato (100%)',
+                'Finito',
+                'In Pausa',
+                'In Corso',
+                'Droppato',
+                'Archiviato',
+                'Online/Senza Fine'
+            ];
+            
+            // Add backlog-specific statuses
+            if (section === 'backlog') {
+                commonStatuses.push('Da Recuperare', 'Da Rigiocare');
+            }
+            
+            // Add all status options
+            commonStatuses.forEach(status => {
+                const option = document.createElement('option');
+                option.value = status;
+                option.textContent = status;
+                statusSelect.appendChild(option);
+            });
+            
+            // Set the current status if it exists in the new options
+            if (currentStatus) {
+                statusSelect.value = currentStatus;
+            }
+            
             document.getElementById('game-modal').classList.add('active');
         } else {
             alert('Errore nel caricamento del gioco');
@@ -499,9 +691,17 @@ async function handleGameSubmit(e) {
     
     // Get all form fields
     for (let [key, value] of formData.entries()) {
+        // Skip file inputs and empty values
+        if (value instanceof File || value === '') continue;
+        
         if (key === 'platform[]') {
             if (!gameData.platform) gameData.platform = [];
             gameData.platform.push(value);
+        } else if (key.endsWith('[]')) {
+            // Handle other array fields if any
+            const fieldName = key.slice(0, -2);
+            if (!gameData[fieldName]) gameData[fieldName] = [];
+            gameData[fieldName].push(value);
         } else {
             gameData[key] = value;
         }
@@ -510,47 +710,70 @@ async function handleGameSubmit(e) {
     // Set section
     gameData.section = e.target.dataset.section || currentSection;
     
+    // Convert empty strings to null for optional fields
+    Object.keys(gameData).forEach(key => {
+        if (gameData[key] === '') {
+            gameData[key] = null;
+        }
+    });
+    
     try {
-        let response;
+        const url = 'api/games.php';
+        const method = editingGameId ? 'PUT' : 'POST';
+        const requestData = {
+            action: editingGameId ? 'update' : 'add',
+            game: gameData
+        };
+
         if (editingGameId) {
-            // Update existing game
-            response = await fetch('api/games.php', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'update',
-                    id: editingGameId,
-                    game: gameData
-                })
-            });
-        } else {
-            // Add new game
-            response = await fetch('api/games.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'add',
-                    game: gameData
-                })
-            });
+            requestData.id = editingGameId;
+        }
+
+        console.log('Sending request to:', url);
+        console.log('Method:', method);
+        console.log('Data:', requestData);
+
+        const response = await fetch(url, {
+            method: method,
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        });
+
+        console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Server responded with error:', errorText);
+            throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+        }
+
+        let result;
+        try {
+            const responseText = await response.text();
+            console.log('Response text:', responseText);
+            result = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('Error parsing JSON response:', parseError);
+            throw new Error('Invalid JSON response from server');
         }
         
-        const result = await response.json();
-        
-        if (result.success) {
+        if (result && result.success) {
             closeGameModal();
             loadGames(gameData.section);
-            showNotification(result.message, 'success');
+            showNotification(result.message || 'Operazione completata con successo', 'success');
         } else {
-            const errorMsg = result && result.message ? result.message : 'Unknown error occurred';
-            console.error('Error loading statistics:', errorMsg);
-            alert('Errore nel caricamento delle statistiche: ' + errorMsg);
+            const errorMsg = result && result.error ? result.error : 
+                           (result && result.message ? result.message : 'Errore sconosciuto');
+            console.error('Server error:', errorMsg);
+            showNotification(`Errore: ${errorMsg}`, 'error');
         }
     } catch (error) {
-        console.error('Error:', error);
-        alert('Errore: ' + error.message);
-    } finally {
-        console.log('Statistics loading completed');
+        console.error('Error in handleGameSubmit:', error);
+        const errorMessage = error.message || 'Si è verificato un errore durante il salvataggio';
+        showNotification(`Errore: ${errorMessage}`, 'error');
     }
 }
 
@@ -955,39 +1178,45 @@ function loadSingleImage(gameId, imageUrl, title) {
         }
     }, 10000); // 10 second timeout
     
-    img.src = imageUrl;
 }
 
 // TSV Import functionality
 function setupTSVImport() {
     const fileInput = document.getElementById('tsv-file');
-    const importStatus = document.getElementById('import-status');
+    if (!fileInput) return;
     
-    if (fileInput) {
-        fileInput.addEventListener('change', handleTSVFileSelect);
-    }
+    // Remove any existing event listeners to avoid duplicates
+    const newFileInput = fileInput.cloneNode(true);
+    fileInput.parentNode.replaceChild(newFileInput, fileInput);
+    
+    newFileInput.addEventListener('change', handleTSVFileSelect);
 }
 
-function handleTSVFileSelect(event) {
+async function handleTSVFileSelect(event) {
     const file = event.target.files[0];
     if (!file) return;
     
-    const importStatus = document.getElementById('import-status');
-    
-    // Validate file type
+    // Check file extension
+    const fileName = file.name.toLowerCase();
+    const fileExtension = fileName.split('.').pop();
     const validExtensions = ['tsv', 'txt'];
-    const fileExtension = file.name.split('.').pop().toLowerCase();
     
     if (!validExtensions.includes(fileExtension)) {
-        importStatus.innerHTML = '<div class="error">Errore: Seleziona un file TSV valido (.tsv o .txt)</div>';
+        showNotification('Errore: Seleziona un file TSV valido (.tsv o .txt)', 'error');
+        // Reset the file input
+        event.target.value = '';
         return;
     }
     
-    // Show upload progress
-    importStatus.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Caricamento file...</div>';
+    // Show loading state
+    showNotification('Importazione del file in corso...', 'info');
     
-    // Upload file
-    uploadTSVFile(file);
+    try {
+        await uploadTSVFile(file);
+    } catch (error) {
+        console.error('Error in TSV import:', error);
+        showNotification('Errore durante l\'importazione del file', 'error');
+    }
 }
 
 async function uploadTSVFile(file) {

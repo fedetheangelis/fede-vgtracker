@@ -1,5 +1,33 @@
 # Changelog
 
+## [2025-07-26] - Versione 1.5.0
+
+### Aggiunte
+- **Filtro Piattaforme**: Aggiunto menu a tendina con filtri per piattaforme (DIGITALE, FISICO, PS1, PS2, PS3, PS4, PS5, PC, SWITCH, 3DS, GBA, WII)
+- **Filtro Stato**: Aggiunto menu a tendina con filtri per stato di completamento (Masterato/Platinato, Completato, Finito, In Pausa, In Corso, Droppato, Archiviato, Online/Senza Fine, Da Recuperare)
+- **Pulsante di Ricerca**: Aggiunto pulsante dedicato per la ricerca dei giochi
+- **Nuovi Stati per Backlog**: Aggiunti stati "da recuperare" e "da rigiocare" con colori personalizzati
+- **Monitoraggio API**: Implementato sistema di tracciamento per le chiamate API con limitazione di 10 chiamate al minuto
+
+### Modifiche
+- **Interfaccia Utente**:
+  - Aggiunto filtro per stato accanto al filtro piattaforme
+  - Spostati i pulsanti "Importa TSV" e "Trova Cover Mancanti" nell'header
+  - Rimosso il nome utente accanto al pulsante di logout, lasciando solo l'icona
+  - Convertiti i pulsanti principali in pulsanti con solo icone per un design più pulito
+  - Modificato il colore del pulsante "Trova Cover Mancanti" da arancione a grigio scuro (#333333)
+  - Centrate le icone dei pulsanti nell'header per una migliore estetica
+- **Backend**:
+  - Aggiunti attributi data-platform e data-status alle card dei giochi per il filtraggio
+  - Migliorata la gestione degli stati dei giochi nel backlog
+  - Corretto il funzionamento del filtro per stato
+
+### Correzioni di Bug
+- Risolto problema di visualizzazione dei giochi nel filtro piattaforme
+- Corretta la gestione degli errori di autenticazione
+- Risolto problema di caricamento delle copertine mancanti
+- Corretta la visualizzazione dei menu a tendina su dispositivi mobili
+
 ## [2025-07-24] - Versione 1.4.0
 
 ### Aggiunte

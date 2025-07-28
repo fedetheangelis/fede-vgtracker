@@ -309,7 +309,7 @@ function createGameCard(game, section) {
                 <div class="game-details">
                     ${platforms.length > 0 ? `
                     <div class="game-detail platforms">
-                        <strong>Piattaforma:</strong>
+                        <strong>💻 Piattaforma:</strong>
                         <div class="platforms-container">${platformBadges}</div>
                     </div>` : ''}
                     
@@ -326,10 +326,10 @@ function createGameCard(game, section) {
 
                     ${game.status ? `<div class="game-detail"><strong>Stato:</strong> <span class="status-badge ${statusClass}">${escapeHtml(game.status)}</span></div>` : ''}
 
-                    ${game.platinum_date ? `<div class="game-detail"><strong>Platinato/Masterato in:</strong> ${escapeHtml(game.platinum_date)}</div>` : ''}
-                    ${game.replays ? `<div class="game-detail"><strong>Replay:</strong> ${game.replays}</div>` : ''}
-                    ${game.first_played ? `<div class="game-detail"><strong>Prima volta giocato:</strong> ${escapeHtml(game.first_played)}</div>` : ''}
-                    ${game.last_finished ? `<div class="game-detail"><strong>Ultima volta finito:</strong> ${escapeHtml(game.last_finished)}</div>` : ''}
+                    ${game.replays ? `<div class="game-detail"><strong>🔁 Replay:</strong> ${game.replays}</div>` : ''}
+                    ${game.first_played ? `<div class="game-detail"><strong>🚀 Prima volta giocato:</strong> ${escapeHtml(game.first_played)}</div>` : ''}
+                    ${game.last_finished ? `<div class="game-detail"><strong>🏁 Ultima volta finito:</strong> ${escapeHtml(game.last_finished)}</div>` : ''}
+                    ${game.platinum_date ? `<div class="game-detail"><strong>🏅 Platinato/Masterato in:</strong> ${escapeHtml(game.platinum_date)}</div>` : ''}
                     ${priorityDisplay}
                 </div>
             </div>
@@ -1386,6 +1386,35 @@ async function logout() {
     }
 }
 
+// Parse playtime string and calculate total hours
+function parsePlaytime(playtimeStr) {
+    if (!playtimeStr) return 0;
+    
+    // Remove all whitespace and convert to lowercase
+    let str = playtimeStr.replace(/\s+/g, '').toLowerCase();
+    
+    // Replace comma decimal separator with dot for consistency
+    str = str.replace(/,/g, '.');
+    
+    // Remove any non-digit, non-dot, non-plus characters (like ~)
+    str = str.replace(/[^\d.+]/g, '');
+    
+    // Split by + and sum all values
+    const parts = str.split('+');
+    let total = 0;
+    
+    parts.forEach(part => {
+        if (part) {
+            const value = parseFloat(part);
+            if (!isNaN(value)) {
+                total += value;
+            }
+        }
+    });
+    
+    return Math.round(total); // Return as integer
+}
+
 // Status color mapping
 const statusColors = {
     'Masterato/Platinato': '#8DB3E2',
@@ -1435,36 +1464,18 @@ async function loadStatistics() {
         console.log('Received statistics data:', data);
         
         if (data.success) {
-            // Render all charts
-            if (data.data) {
-                console.log('Rendering charts with data:', {
-                    hasStatus: !!data.data.status,
-                    hasPlatform: !!data.data.platform,
-                    hasDifficulty: !!data.data.difficulty,
-                    hasTopGames: !!data.data.topDifficultGames,
-                    hasPlayedByYear: !!data.data.playedByYear,
-                    hasVoteDistribution: !!data.data.voteDistribution
-                });
-                
-                if (data.data.status) renderStatusChart(data.data.status);
-                if (data.data.platform) renderPlatformChart(data.data.platform);
-                if (data.data.difficulty) renderDifficultyChart(data.data.difficulty);
-                if (data.data.topDifficultGames) renderDifficultGamesTable(data.data.topDifficultGames);
-                if (data.data.playedByYear) {
-                    console.log('Calling renderPlayedByYearChart with:', data.data.playedByYear);
-                    renderPlayedByYearChart(data.data.playedByYear);
-                } else {
-                    console.warn('No playedByYear data in response');
-                }
-                if (data.data.voteDistribution) {
-                    console.log('Calling renderVoteDistributionChart with:', data.data.voteDistribution);
-                    renderVoteDistributionChart(data.data.voteDistribution);
-                    renderVoteDistributionTable(data.data.voteDistribution);
-                } else {
-                    console.warn('No voteDistribution data in response');
-                }
+            // Render all charts and tables
+            if (data.data.status) renderStatusChart(data.data.status);
+            if (data.data.platform) renderPlatformChart(data.data.platform);
+            if (data.data.difficulty) renderDifficultyChart(data.data.difficulty);
+            if (data.data.topDifficultGames) renderDifficultGamesTable(data.data.topDifficultGames);
+            if (data.data.topPlaytimeGames) renderPlaytimeTable(data.data.topPlaytimeGames);
+            if (data.data.playedByYear) renderPlayedByYearChart(data.data.playedByYear);
+            if (data.data.voteDistribution) {
+                renderVoteDistributionChart(data.data.voteDistribution);
+                renderVoteDistributionTable(data.data.voteDistribution);
             } else {
-                console.error('No data in response:', data);
+                console.warn('No voteDistribution data in response');
             }
             // Also render the data tables
             if (data.data) {
@@ -1748,6 +1759,30 @@ function renderDifficultyChart(difficultyData) {
                 }
             }
         }
+    });
+}
+
+// Render playtime table
+function renderPlaytimeTable(games) {
+    const tbody = document.getElementById('playtimeTableBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    games.forEach((game, index) => {
+        const tr = document.createElement('tr');
+        const statusClass = game.status ? game.status.toLowerCase().replace(/[\s/]+/g, '-') : '';
+        const totalHours = game.total_playtime || parsePlaytime(game.playtime);
+        
+        tr.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${escapeHtml(game.title || 'N/A')}</td>
+            <td>${totalHours} ore</td>
+            <td>${escapeHtml(game.platform || 'N/A')}</td>
+            <td class="status-${statusClass}">${escapeHtml(game.status || 'N/A')}</td>
+        `;
+        
+        tbody.appendChild(tr);
     });
 }
 

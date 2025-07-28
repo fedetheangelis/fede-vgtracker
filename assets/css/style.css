@@ -74,12 +74,45 @@ body {
 
 .chart-table {
     margin-top: 15px;
-    max-height: 200px;
-    overflow-y: auto;
     border: 1px solid var(--border-color);
     border-radius: 5px;
     padding: 0; /* Removed padding to prevent overlap */
     background-color: var(--bg-card);
+    overflow: visible; /* Changed from auto to visible */
+}
+
+/* Specific style for playtime table to show all rows without scrolling */
+#playtimeTable {
+    width: 100%;
+    border-collapse: collapse;
+    color: var(--text-primary);
+}
+
+#playtimeTable th,
+#playtimeTable td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+    background-color: var(--bg-card);
+}
+
+#playtimeTable th {
+    color: var(--accent-primary);
+    font-weight: 600;
+    border-bottom: 2px solid var(--accent-primary);
+}
+
+#playtimeTable tr:last-child td {
+    border-bottom: none;
+}
+
+#playtimeTable tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+#playtimeTable tr:hover {
+    background-color: rgba(50, 205, 50, 0.1);
 }
 
 .chart-table table {
@@ -1171,6 +1204,112 @@ select:focus, input:focus, textarea:focus {
     font-weight: bold;
     color: #ffffff;
     white-space: nowrap;
+}
+
+/* Informazioni Page Styles */
+#info-section {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.info-content {
+    background-color: var(--bg-card);
+    border-radius: 10px;
+    padding: 30px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.info-section {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.last-update {
+    margin-top: 10px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.9em;
+}
+
+.last-update small {
+    opacity: 0.8;
+}
+
+.info-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.info-section h3 {
+    color: var(--accent-primary);
+    margin-bottom: 15px;
+    font-size: 1.3rem;
+}
+
+.info-section p {
+    margin-bottom: 15px;
+    line-height: 1.7;
+}
+
+.status-list,
+.info-list {
+    list-style-type: none;
+    padding-left: 5px;
+}
+
+.status-list li,
+.info-list li {
+    margin-bottom: 10px;
+    padding-left: 15px;
+    position: relative;
+    line-height: 1.6;
+}
+
+.status-list li:before {
+    content: "•";
+    color: var(--accent-primary);
+    font-weight: bold;
+    display: inline-block;
+    width: 1em;
+    margin-left: -1em;
+    position: absolute;
+    left: 0;
+}
+
+.info-list li:before {
+    content: "";
+    position: absolute;
+    left: 0;
+}
+
+.info-section a {
+    color: var(--accent-primary);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.info-section a:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .info-content {
+        padding: 20px 15px;
+    }
+    
+    .info-section {
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+    }
+    
+    .info-section h3 {
+        font-size: 1.2rem;
+    }
 }
 
 .priority-select {

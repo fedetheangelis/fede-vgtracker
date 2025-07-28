@@ -50,7 +50,9 @@ initializeDatabase();
                 <button class="nav-btn" data-section="statistics">
                     <i class="fas fa-chart-bar"></i> Statistiche
                 </button>
-
+                <button class="nav-btn" data-section="info">
+                    <i class="fas fa-info-circle"></i> Informazioni
+                </button>
             </nav>
         </header>
 
@@ -277,6 +279,126 @@ initializeDatabase();
                                 </table>
                             </div>
                         </div>
+
+                        <!-- Top Playtime Games -->
+                        <div class="stat-card full-width">
+                            <h3>Top 15 Giochi con più Ore di Gioco</h3>
+                            <div class="chart-table">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Posizione</th>
+                                            <th>Titolo</th>
+                                            <th>Ore Totali</th>
+                                            <th>Piattaforma</th>
+                                            <th>Stato</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="playtimeTableBody">
+                                        <!-- Will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Info Section -->
+            <section id="info-section" class="game-section">
+                <div class="section-header">
+                    <h2>Informazioni sul sito</h2>
+                    <?php
+                    // Get the site metadata
+                    $metadataFile = __DIR__ . '/site_metadata.json';
+                    $metadata = [
+                        'last_updated' => date('Y-m-d H:i:s'),
+                        'version' => '1.0.0'
+                    ];
+                    
+                    if (file_exists($metadataFile)) {
+                        $fileContent = file_get_contents($metadataFile);
+                        $fileMetadata = json_decode($fileContent, true);
+                        if (json_last_error() === JSON_ERROR_NONE) {
+                            $metadata = array_merge($metadata, $fileMetadata);
+                        }
+                    }
+                    ?>
+                    <div class="last-update">
+                        <small>Ultimo aggiornamento: <?php echo date('d/m/Y H:i', strtotime($metadata['last_updated'])); ?> | Versione: <?php echo htmlspecialchars($metadata['version']); ?></small>
+                    </div>
+                </div>
+                <div class="info-content">
+                    <div class="info-section">
+                        <h3>A cosa serve?</h3>
+                        <p>Ho deciso di creare questa webapp per avere finalmente un posto dove tenere traccia e valutare tutti i giochi che ho giocato in questi anni.</p>
+                        <p>L'idea mi è venuta considerando che non ho trovato siti simili ad Anilist dedicati a valutare e tenere traccia dei videogiochi. Conosco backloggd ma le metriche di valutazione erano troppo approssimative.</p>
+                    </div>
+
+                    <div class="info-section">
+                        <h3>Cosa c'è nelle pagine?</h3>
+                        <p>Una pagina contiene la lista dei giochi che ho già giocato/valutato, l'altra pagina (backlog) contiene tutti quei titoli che ho intenzione, prima o poi, di recuperare.</p>
+                        <p>La pagina statistiche contiene grafici e tabelle varie che si aggiornano ogni volta che viene aggiunta una nuova entry nella lista o viene modificato un valore.</p>
+                        <p>La pagina Changelog (fatta per il meme) contiene una cronologia generale dei cambiamenti più importanti che ho fatto al file e, in generale, il suo sviluppo.</p>
+                    </div>
+
+                    <div class="info-section">
+                        <h3>Stato:</h3>
+                        <ul class="status-list">
+                            <li><strong>Masterato/Platinato</strong>: Include i giochi che ho platinato su PlayStation o masterato su RetroAchievements.org.</li>
+                            <li><strong>Completato 100%</strong>: Include i giochi che ho finito al 100% ma non ho platinato/masterato.</li>
+                            <li><strong>Finito</strong>: Include i giochi di cui ho completato solo le missioni principali, la modalità storia o simili.</li>
+                            <li><strong>In pausa</strong>: Include i giochi che ho già iniziato e giocato, ma che prima o poi devo finire. A differenza del backlog, sono giochi già avviati.</li>
+                            <li><strong>Droppato</strong>: Include i giochi che ho intenzionalmente abbandonato e non intendo finire. Tra i droppati possono apparire anche alcuni titoli online/senza fine, in quel caso significa che non ho più intenzione di riscaricare quel gioco.</li>
+                            <li><strong>Archiviato</strong>: Include i giochi che ho droppato involontariamente per mancanza di tempo o di interesse e che forse (prima o poi) recupererò.</li>
+                            <li><strong>Online/Senza Fine</strong>: Include i giochi multiplayer online che non ho completamente droppato o che in generale riscarico di tanto in tanto.</li>
+                            <li><strong>DA RECUPERARE</strong>: Include i giochi che devo recuperare (Presente solo nel foglio di Backlog).</li>
+                            <li><strong>In corso</strong>: Include i giochi che devo ancora finire e sto giocando. (Presente solo nel foglio di Backlog).</li>
+                            <li><strong>Da Rigiocare</strong>: Include giochi già presenti nella lista completa ma che appaiono anche nel foglio di Backlog. Come dice il nome, sono giochi che ho intenzione di rigiocare.</li>
+                        </ul>
+                    </div>
+
+                    <div class="info-section">
+                        <h3>Tipi di voto:</h3>
+                        <p>I tipi di voto sono 3, oltre quello generale ho deciso di aggiungere:</p>
+                        <p><strong>Voto "Aesthetic":</strong><br>Utilizzato per valutare l'estetica di un gioco: paesaggi, mappe, ambientazioni, grafica</p>
+                        <p><strong>Voto OST:</strong><br>Utilizzato per valutare le canzoni presenti nel gioco</p>
+                    </div>
+
+                    <div class="info-section">
+                        <h3>Difficoltà:</h3>
+                        <p>Abbastanza self-explainatory, varia da 0 a 10.</p>
+                    </div>
+
+                    <div class="info-section">
+                        <h3>Replay completati:</h3>
+                        <p>L'equivalente dei rewatch per un film o una serie TV. E' il numero di volte che ho rigiocato il gioco (arrivando alla fine/obiettivo principale).</p>
+                    </div>
+
+                    <div class="info-section">
+                        <h3>Prima volta giocato:</h3>
+                        <p>Una data approssimativa o in alcuni casi specifica del primo giorno in cui ho messo mano sul gioco.</p>
+                    </div>
+
+                    <div class="info-section">
+                        <h3>Ultima volta finito:</h3>
+                        <p>Il giorno/mese/anno in cui ho finito il gioco per l'ultima volta.</p>
+                    </div>
+
+                    <div class="info-section">
+                        <h3>Platinato/Masterato in:</h3>
+                        <p>Il tempo che ho impiegato per platinare il gioco (o masterarlo su <a href="https://retroachievements.org/user/Fedecrash02" target="_blank">retroachievements.org</a>)</p>
+                    </div>
+
+                    <div class="info-section">
+                        <h3>Altre info varie:</h3>
+                        <ul class="info-list">
+                            <li>► Alcuni link immagine sono stati messi manualmente perché RAWG aveva problemi a differenziare i titoli (alcuni esempi sono i giochi di Ratchet & Clank).</li>
+                            <li>► Alcuni link immagine non sono appartenenti a RAWG, in quel caso ho semplicemente preferito farlo perché non mi piaceva l'immagine che appariva sul sito.</li>
+                            <li>► Se non vengono inseriti voti nelle sezioni soundtrack/aesthetic, significa che essi sono irrilevanti per il gioco. In altri casi può significare che non ho giocato abbastanza per fornire una valutazione.</li>
+                            <li>► Il simbolo ~ (circa), viene utilizzato quando non ho date o info precise riguardo un videogioco.</li>
+                            <li>► Nel foglio Backlog è presente un'ulteriore metrica in cui inserisco la priorità (da 0 a 10) con il quale ho intenzione di recuperare quel gioco.</li>
+                        </ul>
                     </div>
                 </div>
             </section>

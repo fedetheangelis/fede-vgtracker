@@ -1,6 +1,4 @@
 fare in modo che lo spettatore possa cliccare sul gioco singolo per vedere le info approfondite senza modificarle
 add tabelle top 15 giochi con piu ore
 add tabelle top 15 giochi 100% piu velocemente
-add filtraggio per piattaforma, stato, difficoltà ecc
-add lente di ingrandimento su giochi main e backlog per cercare
 il pallino giochi giocati dal grafico distr anni puo essere tolto? - problemi riscontrati nel farlo

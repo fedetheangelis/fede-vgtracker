@@ -1,23 +1,35 @@
 # Changelog
 
+## [2025-07-26] - Versione 1.6.0
+
+### Aggiunte
+- **Tabella Ore di Gioco**: Aggiunta tabella "Top 15 Giochi con più Ore di Gioco" nella sezione Statistiche
+  - Calcolo automatico del tempo di gioco totale da stringhe multiple (es: "412 PS + 7,9 PC + 2" = 422 ore)
+  - Supporto per numeri decimali con virgola o punto
+  - Ignoro di caratteri non numerici e simboli come "~"
+  - Ordinamento decrescente per ore totali
+
 ## [2025-07-26] - Versione 1.5.0
 
 ### Aggiunte
 - **Filtro Piattaforme**: Aggiunto menu a tendina con filtri per piattaforme (DIGITALE, FISICO, PS1, PS2, PS3, PS4, PS5, PC, SWITCH, 3DS, GBA, WII)
+- **Filtro Stato**: Aggiunto menu a tendina con filtri per stato di completamento (Masterato/Platinato, Completato, Finito, In Pausa, In Corso, Droppato, Archiviato, Online/Senza Fine, Da Recuperare)
 - **Pulsante di Ricerca**: Aggiunto pulsante dedicato per la ricerca dei giochi
 - **Nuovi Stati per Backlog**: Aggiunti stati "da recuperare" e "da rigiocare" con colori personalizzati
 - **Monitoraggio API**: Implementato sistema di tracciamento per le chiamate API con limitazione di 10 chiamate al minuto
 
 ### Modifiche
 - **Interfaccia Utente**:
+  - Aggiunto filtro per stato accanto al filtro piattaforme
   - Spostati i pulsanti "Importa TSV" e "Trova Cover Mancanti" nell'header
   - Rimosso il nome utente accanto al pulsante di logout, lasciando solo l'icona
   - Convertiti i pulsanti principali in pulsanti con solo icone per un design più pulito
   - Modificato il colore del pulsante "Trova Cover Mancanti" da arancione a grigio scuro (#333333)
   - Centrate le icone dei pulsanti nell'header per una migliore estetica
 - **Backend**:
-  - Aggiunto attributo data-platform alle card dei giochi per il filtraggio
+  - Aggiunti attributi data-platform e data-status alle card dei giochi per il filtraggio
   - Migliorata la gestione degli stati dei giochi nel backlog
+  - Corretto il funzionamento del filtro per stato
 
 ### Correzioni di Bug
 - Risolto problema di visualizzazione dei giochi nel filtro piattaforme

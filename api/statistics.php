@@ -157,6 +157,48 @@ function getVoteDistribution($pdo) {
     }
 }
 
+// Function to get top games by playtime
+function getTopPlaytimeGames($pdo, $limit = 15) {
+    $games = $pdo->query("
+        SELECT id, title, platform, playtime, status 
+        FROM games 
+        WHERE playtime IS NOT NULL 
+        AND playtime != ''
+        AND (section = 'played' OR section = 'backlog')
+        ORDER BY title
+    ")->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Process each game to calculate total playtime
+    foreach ($games as &$game) {
+        $game['total_playtime'] = 0;
+        if (!empty($game['playtime'])) {
+            // Calculate total playtime using the same logic as the frontend
+            $playtime = $game['playtime'];
+            $playtime = preg_replace('/\s+/', '', $playtime);
+            $playtime = str_replace(',', '.', $playtime);
+            $playtime = preg_replace('/[^\d.+]/', '', $playtime);
+            
+            $parts = explode('+', $playtime);
+            $total = 0;
+            foreach ($parts as $part) {
+                if (is_numeric($part)) {
+                    $total += (float)$part;
+                }
+            }
+            
+            $game['total_playtime'] = (int)round($total);
+        }
+    }
+    
+    // Sort by total playtime descending
+    usort($games, function($a, $b) {
+        return $b['total_playtime'] - $a['total_playtime'];
+    });
+    
+    // Return only the top $limit games
+    return array_slice($games, 0, $limit);
+}
+
 // Function to get games played by year distribution
 function getPlayedByYear($pdo) {
     try {
@@ -243,6 +285,7 @@ try {
     $platformDistribution = getPlatformDistribution($pdo);
     $difficultyDistribution = getDifficultyDistribution($pdo);
     $topDifficultGames = getTopDifficultGames($pdo);
+    $topPlaytimeGames = getTopPlaytimeGames($pdo);
     $playedByYear = getPlayedByYear($pdo);
     $voteDistribution = getVoteDistribution($pdo);
     
@@ -254,6 +297,7 @@ try {
             'platform' => $platformDistribution,
             'difficulty' => $difficultyDistribution,
             'topDifficultGames' => $topDifficultGames,
+            'topPlaytimeGames' => $topPlaytimeGames,
             'playedByYear' => $playedByYear,
             'voteDistribution' => $voteDistribution
         ]

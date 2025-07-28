@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/update_timestamp.php';
 
 // RAWG API configuration
 define('RAWG_API_KEY', 'b06700683ebe479fa895f1db55b1abb8');
@@ -29,6 +30,9 @@ function getGames($section = 'played', $sortBy = 'title', $sortOrder = 'ASC') {
     }
     
     $stmt->execute([$section]);
+    
+    // Update the site timestamp
+    updateSiteTimestamp();
     
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
@@ -86,7 +90,14 @@ function addGame($data) {
         array_splice($params, 16, 0, [$data['priority'] ?? 0]);
     }
     
-    return $stmt->execute($params);
+    $result = $stmt->execute($params);
+    
+    if ($result) {
+        // Update the site timestamp only if the insertion was successful
+        updateSiteTimestamp();
+    }
+    
+    return $result;
 }
 
 // Update a game
@@ -140,14 +151,28 @@ function updateGame($id, $data) {
     // Add ID as the last parameter
     $params[] = $id;
     
-    return $stmt->execute($params);
+    $result = $stmt->execute($params);
+    
+    if ($result) {
+        // Update the site timestamp only if the update was successful
+        updateSiteTimestamp();
+    }
+    
+    return $result;
 }
 
 // Delete a game
 function deleteGame($id) {
     $pdo = getGameTrackerConnection();
     $stmt = $pdo->prepare("DELETE FROM games WHERE id = ?");
-    return $stmt->execute([$id]);
+    $result = $stmt->execute([$id]);
+    
+    if ($result) {
+        // Update the site timestamp only if the deletion was successful
+        updateSiteTimestamp();
+    }
+    
+    return $result;
 }
 
 // Get a single game by ID

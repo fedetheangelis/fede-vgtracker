@@ -1,8 +1,7 @@
-# Changelog
-
-## [2025-07-28] - Versione 1.7.0
+## [2025-07-28] - Versione 1.7.2
 
 ### Aggiunte
+- **Pagina Changelog**: Aggiunta nuova sezione "Changelog" accessibile dal menu di navigazione
 - **Pagina Informazioni**: Aggiunta nuova sezione "Informazioni sul sito" accessibile dal menu di navigazione
   - Dettagliate spiegazioni su stati, voti, difficoltà e altre metriche
   - Sezione dedicata alla descrizione dello scopo del sito

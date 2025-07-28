@@ -53,6 +53,9 @@ initializeDatabase();
                 <button class="nav-btn" data-section="info">
                     <i class="fas fa-info-circle"></i> Informazioni
                 </button>
+                <button class="nav-btn" data-section="changelog">
+                    <i class="fas fa-history"></i> Changelog
+                </button>
             </nav>
         </header>
 
@@ -400,6 +403,30 @@ initializeDatabase();
                             <li>► Nel foglio Backlog è presente un'ulteriore metrica in cui inserisco la priorità (da 0 a 10) con il quale ho intenzione di recuperare quel gioco.</li>
                         </ul>
                     </div>
+                </div>
+            </section>
+
+            <!-- Changelog Section -->
+            <section id="changelog-section" class="game-section">
+                <div class="section-header">
+                    <h2>Changelog</h2>
+                    <div class="last-update">
+                        <small>Ultimo aggiornamento: <?php echo date('d/m/Y H:i', strtotime($metadata['last_updated'])); ?> | Versione: <?php echo htmlspecialchars($metadata['version']); ?></small>
+                    </div>
+                </div>
+                <div class="changelog-content">
+                    <?php 
+                    $changelogContent = file_get_contents(__DIR__ . '/README.md');
+                    // Convert markdown to HTML (we'll add a simple converter function)
+                    $changelogContent = preg_replace('/^# (.*$)/m', '<h1>$1</h1>', $changelogContent);
+                    $changelogContent = preg_replace('/^## (.*$)/m', '<h2>$1</h2>', $changelogContent);
+                    $changelogContent = preg_replace('/^### (.*$)/m', '<h3>$1</h3>', $changelogContent);
+                    $changelogContent = preg_replace('/^#### (.*$)/m', '<h4>$1</h4>', $changelogContent);
+                    $changelogContent = preg_replace('/\*\*(.*?)\*\*/', '<strong>$1</strong>', $changelogContent);
+                    $changelogContent = preg_replace('/\*(.*?)\*/', '<em>$1</em>', $changelogContent);
+                    $changelogContent = nl2br($changelogContent);
+                    echo $changelogContent;
+                    ?>
                 </div>
             </section>
 

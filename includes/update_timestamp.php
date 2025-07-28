@@ -3,7 +3,7 @@ function updateSiteTimestamp() {
     $file = __DIR__ . '/../site_metadata.json';
     $data = [
         'last_updated' => date('Y-m-d H:i:s'),
-        'version' => '1.0.0' // You can update this version number when you make significant updates
+        'version' => '1.7.2' // You can update this version number when you make significant updates
     ];
     
     file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT));

@@ -2,8 +2,8 @@
 session_start();
 
 // Admin credentials (in production, these should be in environment variables or database)
-define('ADMIN_USERNAME', 'fef');
-define('ADMIN_PASSWORD', 'sempiternaltrk!'); // Secure password
+define('ADMIN_USERNAME', 'a');
+define('ADMIN_PASSWORD', 'b'); // Secure password
 
 // Check if user is logged in as admin
 function isAdmin() {

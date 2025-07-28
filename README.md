@@ -1,5 +1,27 @@
 # Changelog
 
+## [2025-07-28] - Versione 1.7.0
+
+### Aggiunte
+- **Pagina Informazioni**: Aggiunta nuova sezione "Informazioni sul sito" accessibile dal menu di navigazione
+  - Dettagliate spiegazioni su stati, voti, difficoltà e altre metriche
+  - Sezione dedicata alla descrizione dello scopo del sito
+  - Informazioni su come vengono utilizzati i diversi tipi di voto
+  - Spiegazione dettagliata di tutti gli stati dei giochi
+- **Timestamp Aggiornamento**: Aggiunto sistema di tracciamento dell'ultimo aggiornamento
+  - Visualizzazione dell'ultima modifica nella pagina Informazioni
+  - Aggiornamento automatico del timestamp a ogni modifica dei dati
+  - Versione del software sempre visibile
+
+## [2025-07-26] - Versione 1.6.0
+
+### Aggiunte
+- **Tabella Ore di Gioco**: Aggiunta tabella "Top 15 Giochi con più Ore di Gioco" nella sezione Statistiche
+  - Calcolo automatico del tempo di gioco totale da stringhe multiple (es: "412 PS + 7,9 PC + 2" = 422 ore)
+  - Supporto per numeri decimali con virgola o punto
+  - Ignoro di caratteri non numerici e simboli come "~"
+  - Ordinamento decrescente per ore totali
+
 ## [2025-07-26] - Versione 1.5.0
 
 ### Aggiunte

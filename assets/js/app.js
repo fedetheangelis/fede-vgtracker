@@ -3,8 +3,6 @@ let currentSection = 'played';
 let currentSort = { played: 'title', backlog: 'title' };
 let currentOrder = { played: 'ASC', backlog: 'ASC' };
 let editingGameId = null;
-
-// Image loading throttling system
 let imageLoadQueue = [];
 let isLoadingImages = false;
 const IMAGES_PER_BATCH = 20;
@@ -14,10 +12,29 @@ const BATCH_DELAY = 5000; // 5 seconds between batches
 document.addEventListener('DOMContentLoaded', function() {
     // Ensure admin-only elements are hidden by default
     document.body.classList.remove('admin-logged-in');
+    
+    // Initialize core functionality
     checkAuthStatus();
     loadGames('played');
     setupEventListeners();
-    setupTSVImport();
+    
+    // Set up TSV file upload
+    const tsvFileInput = document.getElementById('tsv-file');
+    if (tsvFileInput) {
+        tsvFileInput.addEventListener('change', handleTSVUpload);
+    }
+    
+    // Restore last visited section from localStorage
+    const lastSection = localStorage.getItem('lastVisitedSection');
+    if (lastSection && lastSection !== 'played') {
+        // Small delay to ensure all elements are loaded
+        setTimeout(() => {
+            const sectionBtn = document.querySelector(`.nav-btn[data-section="${lastSection}"]`);
+            if (sectionBtn) {
+                sectionBtn.click();
+            }
+        }, 100);
+    }
 });
 
 async function checkAuthStatus() {
@@ -40,6 +57,9 @@ function updateUIForAuthStatus(user) {
     const loginBtn = document.getElementById('login-btn');
     const userInfo = document.getElementById('user-info');
     const addGameButtons = document.querySelectorAll('button[onclick*="openAddGameModal"]');
+    
+    // Update the global admin flag
+    window.isAdminLoggedIn = user.is_admin || false;
     
     if (user.is_admin) {
         // Add admin class to body to show admin-only elements via CSS
@@ -80,17 +100,9 @@ function updateUIForAuthStatus(user) {
     }
 }
 
+// Function to enable/disable game card actions based on admin status
 function enableGameCardActions(enabled) {
-    // This will be called when games are loaded to show/hide action buttons
     window.isAdminLoggedIn = enabled;
-}
-
-function initializeApp() {
-    setupEventListeners();
-    loadGames('played');
-    
-    // Set up TSV file upload
-    document.getElementById('tsv-file').addEventListener('change', handleTSVUpload);
 }
 
 function setupEventListeners() {
@@ -103,48 +115,73 @@ function setupEventListeners() {
     });
     
     // Sort controls
-    document.getElementById('sort-played').addEventListener('change', function() {
-        currentSort.played = this.value;
-        loadGames('played');
-    });
+    const sortPlayed = document.getElementById('sort-played');
+    const sortBacklog = document.getElementById('sort-backlog');
     
-    document.getElementById('sort-backlog').addEventListener('change', function() {
-        currentSort.backlog = this.value;
-        loadGames('backlog');
-    });
+    if (sortPlayed) {
+        sortPlayed.addEventListener('change', function() {
+            currentSort.played = this.value;
+            loadGames('played');
+        });
+    }
+    
+    if (sortBacklog) {
+        sortBacklog.addEventListener('change', function() {
+            currentSort.backlog = this.value;
+            loadGames('backlog');
+        });
+    }
     
     // Game form submission
-    document.getElementById('game-form').addEventListener('submit', handleGameSubmit);
+    const gameForm = document.getElementById('game-form');
+    if (gameForm) {
+        gameForm.addEventListener('submit', handleGameSubmit);
+    }
     
     // Cover URL input change
-    document.getElementById('game-cover').addEventListener('input', function() {
-        updateCoverPreview(this.value);
-    });
+    const coverInput = document.getElementById('game-cover');
+    if (coverInput) {
+        coverInput.addEventListener('input', function() {
+            updateCoverPreview(this.value);
+        });
+    }
     
     // Modal close on outside click
-    document.getElementById('game-modal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            closeGameModal();
-        }
-    });
+    const gameModal = document.getElementById('game-modal');
+    if (gameModal) {
+        gameModal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeGameModal();
+            }
+        });
+    }
 }
 
 function switchSection(section) {
-    // Update navigation
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('active');
+    // Hide all sections
+    document.querySelectorAll('.game-section').forEach(section => {
+        section.classList.remove('active');
     });
-    document.querySelector(`[data-section="${section}"]`).classList.add('active');
     
-    // Update sections
-    document.querySelectorAll('.game-section').forEach(sec => {
-        sec.classList.remove('active');
-    });
+    // Show the selected section
     document.getElementById(`${section}-section`).classList.add('active');
     
+    // Update active button
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        if (btn.getAttribute('data-section') === section) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    // Update current section
     currentSection = section;
     
-    // Load content for the selected section
+    // Save the current section to localStorage
+    localStorage.setItem('lastVisitedSection', section);
+    
+    // Load games for this section if needed
     if (section === 'played' || section === 'backlog') {
         loadGames(section);
     } else if (section === 'statistics') {
@@ -212,6 +249,87 @@ function displayGames(games, section) {
     }
 }
 
+// Open game details modal with game information
+function openGameDetailsModal(game) {
+    const modal = document.getElementById('game-details-modal');
+    const title = document.getElementById('game-details-title');
+    const cover = document.getElementById('game-details-cover');
+    const platform = document.getElementById('game-details-platform');
+    const status = document.getElementById('game-details-status');
+    const scores = document.getElementById('game-details-scores');
+    const dates = document.getElementById('game-details-dates');
+    const review = document.getElementById('game-details-review');
+
+    // Set basic info
+    title.textContent = game.title;
+    cover.src = game.cover_url || 'assets/images/placeholder.jpg';
+    cover.onerror = function() {
+        this.src = 'assets/images/placeholder.jpg';
+    };
+
+    // Set platform and status badges
+    platform.textContent = game.platform;
+    platform.className = 'platform-badge';
+    
+    status.textContent = game.status;
+    status.className = 'status-badge ' + getStatusClass(game.status);
+
+    // Set scores
+    scores.innerHTML = '';
+    if (game.total_score) {
+        const scoreBadge = document.createElement('div');
+        scoreBadge.className = 'score-badge';
+        scoreBadge.innerHTML = `<i class="fas fa-star"></i> Voto: ${game.total_score}/10`;
+        scores.appendChild(scoreBadge);
+    }
+
+    if (game.difficulty) {
+        const diffBadge = document.createElement('div');
+        diffBadge.className = 'score-badge';
+        diffBadge.innerHTML = `<i class="fas fa-tachometer-alt"></i> Difficoltà: ${game.difficulty}/10`;
+        scores.appendChild(diffBadge);
+    }
+
+    // Set dates
+    dates.innerHTML = '';
+    if (game.completion_date) {
+        const dateElement = document.createElement('div');
+        dateElement.className = 'game-date';
+        dateElement.innerHTML = `<i class="far fa-calendar-check"></i> Completato il: ${game.completion_date}`;
+        dates.appendChild(dateElement);
+    }
+
+    if (game.completion_time) {
+        const timeElement = document.createElement('div');
+        timeElement.className = 'game-date';
+        timeElement.innerHTML = `<i class="far fa-clock"></i> Tempo di completamento: ${game.completion_time}`;
+        dates.appendChild(timeElement);
+    }
+
+    // Set review
+    review.textContent = game.review || 'Nessuna recensione disponibile.';
+    review.style.fontStyle = game.review ? 'normal' : 'italic';
+
+    // Show the modal
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+// Close game details modal
+function closeGameDetailsModal() {
+    const modal = document.getElementById('game-details-modal');
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Close modal when clicking outside content
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('game-details-modal');
+    if (event.target === modal) {
+        closeGameDetailsModal();
+    }
+});
+
 function createGameCard(game, section) {
     // Process platforms to handle DIGITALE/FISICO and other platforms
     const platforms = game.platform ? game.platform.split(',').map(p => p.trim()) : [];
@@ -276,8 +394,14 @@ function createGameCard(game, section) {
     
     // Check if admin is logged in to show/hide admin actions
     const isAdmin = window.isAdminLoggedIn || false;
-    const cardClickHandler = isAdmin ? `onclick="openEditGameModal(${game.id})"` : '';
-    const cardCursor = isAdmin ? 'cursor: pointer;' : 'cursor: default;';
+    
+    // For admins, use the existing openEditGameModal function with just the game ID
+    // For non-admins, use openGameDetailsModal with the full game object
+    const cardClickHandler = isAdmin 
+        ? `onclick="event.stopPropagation(); openEditGameModal(${game.id})"` 
+        : `onclick="openGameDetailsModal(${JSON.stringify(game).replace(/"/g, '&quot;')})"`;
+        
+    const cardCursor = 'cursor: pointer;';
     
     // Add priority display for backlog games
     const priorityDisplay = section === 'backlog' ? `
@@ -497,7 +621,6 @@ function filterByPlatform(section) {
 
 // Filter games by selected statuses
 function filterByStatus(section) {
-    // Just call filterByPlatform which now handles both platform and status filters
     filterByPlatform(section);
 }
 
@@ -513,13 +636,6 @@ function filterGames(section) {
             game.style.display = 'none';
         }
     });
-}
-
-function filterAndSortGames(section) {
-    currentOrder[section] = currentOrder[section] === 'ASC' ? 'DESC' : 'ASC';
-    const icon = document.getElementById(`sort-icon-${section}`);
-    icon.className = currentOrder[section] === 'ASC' ? 'fas fa-sort-up' : 'fas fa-sort-down';
-    loadGames(section, false);
 }
 
 function toggleSortOrder(section) {
@@ -1180,17 +1296,7 @@ function loadSingleImage(gameId, imageUrl, title) {
     
 }
 
-// TSV Import functionality
-function setupTSVImport() {
-    const fileInput = document.getElementById('tsv-file');
-    if (!fileInput) return;
-    
-    // Remove any existing event listeners to avoid duplicates
-    const newFileInput = fileInput.cloneNode(true);
-    fileInput.parentNode.replaceChild(newFileInput, fileInput);
-    
-    newFileInput.addEventListener('change', handleTSVFileSelect);
-}
+// TSV Import functionality is handled directly by handleTSVUpload
 
 async function handleTSVFileSelect(event) {
     const file = event.target.files[0];
@@ -1357,6 +1463,8 @@ async function login(username, password) {
             showNotification('Login effettuato con successo!', 'success');
             closeLoginModal();
             updateUIForAuthStatus(data.user);
+            // Reload games to update the UI with admin actions
+            loadGames(currentSection);
             return true;
         } else {
             showNotification(data.error || 'Errore durante il login', 'error');
@@ -1377,7 +1485,7 @@ async function logout() {
         if (data.success) {
             showNotification('Logout effettuato con successo!', 'success');
             updateUIForAuthStatus({ is_admin: false });
-            // Reload games to hide admin actions
+            // Force reload games to update the UI without admin actions
             loadGames(currentSection);
         }
     } catch (error) {
@@ -1390,29 +1498,341 @@ async function logout() {
 function parsePlaytime(playtimeStr) {
     if (!playtimeStr) return 0;
     
-    // Remove all whitespace and convert to lowercase
-    let str = playtimeStr.replace(/\s+/g, '').toLowerCase();
+    let totalHours = 0;
     
-    // Replace comma decimal separator with dot for consistency
-    str = str.replace(/,/g, '.');
+    // Handle formats like "412 PS + 7,9 PC + 2"
+    const parts = playtimeStr.split('+').map(part => part.trim());
     
-    // Remove any non-digit, non-dot, non-plus characters (like ~)
-    str = str.replace(/[^\d.+]/g, '');
-    
-    // Split by + and sum all values
-    const parts = str.split('+');
-    let total = 0;
-    
-    parts.forEach(part => {
-        if (part) {
-            const value = parseFloat(part);
+    for (const part of parts) {
+        // Extract numeric value (handles both . and , as decimal separator)
+        const match = part.match(/^([\d,.]*\d+)/);
+        if (match) {
+            // Replace comma with dot for proper float parsing
+            const value = parseFloat(match[1].replace(',', '.'));
             if (!isNaN(value)) {
-                total += value;
+                totalHours += value;
             }
         }
-    });
+    }
     
-    return Math.round(total); // Return as integer
+    return parseFloat(totalHours.toFixed(1));
+}
+
+// Helper function to convert time components to total minutes
+function timeToMinutes(years = 0, months = 0, days = 0, hours = 0, minutes = 0) {
+    // Approximate conversions (since months and years aren't fixed)
+    const daysFromYears = years * 365;
+    const daysFromMonths = months * 30; // Approximation
+    const totalDays = daysFromYears + daysFromMonths + days;
+    return (totalDays * 24 * 60) + (hours * 60) + minutes;
+}
+
+// Parse completion time string (e.g., "2 ORE, 30 MINUTI" or "1 GIORNO, 3 ORE")
+function parseCompletionTime(completionStr) {
+    if (!completionStr || completionStr.trim() === '') return null;
+    
+    console.log('Parsing completion time:', completionStr);
+    
+    // Special handling for Crash Bandicoot N.Sane Trilogy format
+    if (completionStr.includes('(CB2)')) {
+        console.log('=== DEBUG: Processing Crash Bandicoot N.Sane Trilogy ===');
+        console.log('Original string:', completionStr);
+        
+        // Extract just the CB2 time (second entry)
+        // First get the text between (CB1) and (CB3)
+        const cb2Section = completionStr.match(/\(CB1\)(.*?)\(CB3\)/is);
+        let cb2Match = null;
+        
+        if (cb2Section && cb2Section[1]) {
+            // Now extract days and hours from the CB2 section
+            cb2Match = cb2Section[1].match(/(\d+)\s*GIORNI?[,\s]*(\d+)?\s*ORE?/i);
+        }
+        console.log('CB2 match result:', cb2Match);
+        
+        if (cb2Match) {
+            const days = parseInt(cb2Match[1]) || 0;
+            const hours = cb2Match[2] ? parseInt(cb2Match[2]) : 0;
+            const totalMinutes = timeToMinutes(0, 0, days, hours, 0);
+            const result = {
+                days: days,
+                hours: hours,
+                totalMinutes: totalMinutes,
+                display: `${days} ${days === 1 ? 'GIORNO' : 'GIORNI'}${hours ? `, ${hours} ORE` : ''} (CB2)`,
+                original: completionStr
+            };
+            console.log('Successfully processed CB2 time:', result);
+            return result;
+        } else {
+            console.log('WARNING: Could not parse CB2 time from:', completionStr);
+            
+            // Fallback: Try to extract any time format for CB2
+            const fallbackMatch = completionStr.match(/\(CB2\)\s*([^)]+)/i);
+            if (fallbackMatch) {
+                console.log('Attempting fallback parsing for:', fallbackMatch[1]);
+                const fallbackParsed = parseCompletionTime(fallbackMatch[1].trim());
+                if (fallbackParsed) {
+                    console.log('Fallback parsing successful:', fallbackParsed);
+                    return {
+                        ...fallbackParsed,
+                        display: `${fallbackParsed.display} (CB2)`
+                    };
+                }
+            }
+        }
+        console.log('=== END DEBUG ===');
+    }
+    
+    // Normalize the string - remove any non-essential text
+    const normalized = completionStr
+        .toUpperCase()
+        .replace(/^PLATINATO\/MASTERATO IN:/i, '') // Remove label if present
+        .replace(/\([^)]+\)/g, '') // Remove any parenthetical notes like (PS4)
+        .replace(/\s+/g, ' ') // Normalize spaces
+        .trim();
+    
+    console.log('Normalized time string:', normalized);
+    
+    // Try to match "X ORE, YY MINUTI" format
+    const timeMatch = normalized.match(/(\d+)\s*ORE\D*(\d+)?\s*MINUTI?/);
+    if (timeMatch) {
+        const hours = parseInt(timeMatch[1]) || 0;
+        const minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+        const totalMinutes = timeToMinutes(0, 0, 0, hours, minutes);
+        const result = {
+            hours: hours,
+            minutes: minutes,
+            totalMinutes: totalMinutes,
+            display: `${hours} ORE${minutes ? `, ${minutes} MINUTI` : ''}`,
+            original: completionStr
+        };
+        console.log('Matched time format:', result);
+        return result;
+    }
+    
+    // Try to match "X GIORNO, YY MINUTI" format (e.g., "1 giorno, 37 minuti")
+    const giornoMinutiMatch = normalized.match(/(\d+)\s*GIORNO\D*(\d+)?\s*MINUTI?/);
+    if (giornoMinutiMatch) {
+        const days = parseInt(giornoMinutiMatch[1]) || 0;
+        const minutes = giornoMinutiMatch[2] ? parseInt(giornoMinutiMatch[2]) : 0;
+        const totalMinutes = timeToMinutes(0, 0, days, 0, minutes);
+        const result = {
+            days: days,
+            minutes: minutes,
+            totalMinutes: totalMinutes,
+            display: `${days} ${days === 1 ? 'GIORNO' : 'GIORNI'}${minutes ? `, ${minutes} MINUTI` : ''}`,
+            original: completionStr
+        };
+        console.log('Matched giorno/minuti format:', result);
+        return result;
+    }
+    
+    // Try to match "X GIORNI, YY ORE" format
+    const dayMatch = normalized.match(/(\d+)\s*GIORNI?\D*(\d+)?\s*ORE?/);
+    if (dayMatch) {
+        const days = parseInt(dayMatch[1]) || 0;
+        const hours = dayMatch[2] ? parseInt(dayMatch[2]) : 0;
+        const totalMinutes = timeToMinutes(0, 0, days, hours, 0);
+        const result = {
+            days: days,
+            hours: hours,
+            totalMinutes: totalMinutes,
+            display: `${days} ${days === 1 ? 'GIORNO' : 'GIORNI'}${hours ? `, ${hours} ORE` : ''}`,
+            original: completionStr
+        };
+        console.log('Matched days format:', result);
+        return result;
+    }
+    
+    // Try to match "X ANNI, Y MESI, Z GIORNI" format
+    const anniMesiGiorniMatch = normalized.match(/(\d+)\s*ANNI?\D*(\d+)?\s*MESI?\D*(\d+)?\s*GIORNI?/i);
+    if (anniMesiGiorniMatch) {
+        const years = parseInt(anniMesiGiorniMatch[1]) || 0;
+        const months = anniMesiGiorniMatch[2] ? parseInt(anniMesiGiorniMatch[2]) : 0;
+        const days = anniMesiGiorniMatch[3] ? parseInt(anniMesiGiorniMatch[3]) : 0;
+        const totalMinutes = timeToMinutes(years, months, days, 0, 0);
+        const result = {
+            years: years,
+            months: months,
+            days: days,
+            totalMinutes: totalMinutes,
+            display: [
+                years > 0 ? `${years} ${years === 1 ? 'ANNO' : 'ANNI'}` : '',
+                months > 0 ? `${months} ${months === 1 ? 'MESE' : 'MESI'}` : '',
+                days > 0 ? `${days} ${days === 1 ? 'GIORNO' : 'GIORNI'}` : ''
+            ].filter(Boolean).join(', '),
+            original: completionStr
+        };
+        console.log('Matched anni/mesi/giorni format:', result);
+        return result;
+    }
+    
+    // Try to match "X MESI, Y GIORNI" format
+    const mesiGiorniMatch = normalized.match(/(\d+)\s*MESI?\D*(\d+)?\s*GIORNI?/i);
+    if (mesiGiorniMatch) {
+        const months = parseInt(mesiGiorniMatch[1]) || 0;
+        const days = mesiGiorniMatch[2] ? parseInt(mesiGiorniMatch[2]) : 0;
+        const totalMinutes = timeToMinutes(0, months, days, 0, 0);
+        const result = {
+            months: months,
+            days: days,
+            totalMinutes: totalMinutes,
+            display: [
+                months > 0 ? `${months} ${months === 1 ? 'MESE' : 'MESI'}` : '',
+                days > 0 ? `${days} ${days === 1 ? 'GIORNO' : 'GIORNI'}` : ''
+            ].filter(Boolean).join(', '),
+            original: completionStr
+        };
+        console.log('Matched mesi/giorni format:', result);
+        return result;
+    }
+    
+    // Try to match "X ANNI, Y MESI" format
+    const anniMesiMatch = normalized.match(/(\d+)\s*ANNI?\D*(\d+)?\s*MESI?/i);
+    if (anniMesiMatch) {
+        const years = parseInt(anniMesiMatch[1]) || 0;
+        const months = anniMesiMatch[2] ? parseInt(anniMesiMatch[2]) : 0;
+        const totalMinutes = timeToMinutes(years, months, 0, 0, 0);
+        const result = {
+            years: years,
+            months: months,
+            totalMinutes: totalMinutes,
+            display: [
+                years > 0 ? `${years} ${years === 1 ? 'ANNO' : 'ANNI'}` : '',
+                months > 0 ? `${months} ${months === 1 ? 'MESE' : 'MESI'}` : ''
+            ].filter(Boolean).join(', '),
+            original: completionStr
+        };
+        console.log('Matched anni/mesi format:', result);
+        return result;
+    }
+    
+    // Try to match simple days format (e.g., "163 giorni")
+    const giorniMatch = normalized.match(/(\d+)\s*GIORNI?/i);
+    if (giorniMatch) {
+        const days = parseInt(giorniMatch[1]) || 0;
+        const totalMinutes = timeToMinutes(0, 0, days, 0, 0);
+        const result = {
+            days: days,
+            totalMinutes: totalMinutes,
+            display: `${days} ${days === 1 ? 'GIORNO' : 'GIORNI'}`,
+            original: completionStr
+        };
+        console.log('Matched giorni format:', result);
+        return result;
+    }
+    
+    console.log('No valid time format found for:', completionStr);
+    return null; // No valid format found
+}
+
+// Render fastest completions table
+function renderFastestCompletionsTable(games) {
+    const tbody = document.getElementById('fastestCompletionsBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    console.log('=== DEBUG: Starting renderFastestCompletionsTable ===');
+    console.log('Total games to process:', games.length);
+    
+    // Log all games with their status and platinum_date for debugging
+    console.log('All games with status and platinum_date:');
+    games.forEach(game => {
+        // Log all games for debugging
+        console.log(`Game: ${game.title}, Status: ${game.status}, Platinum Date: ${game.platinum_date}`);
+        
+        // Special debug for crash games
+        if (game.title && game.title.toLowerCase().includes('crash')) {
+            console.log('CRASH GAME FOUND:', {
+                title: game.title,
+                status: game.status,
+                platinum_date: game.platinum_date,
+                hasPlatinum: game.status && (game.status.includes('Platinato') || game.status.includes('Masterato'))
+            });
+        }
+    });
+
+    // Filter games with valid completion times and parse them
+    const gamesWithCompletion = games
+        .filter(game => {
+            const hasPlatinumDate = !!game.platinum_date;
+            const hasValidStatus = game.status && (game.status.includes('Platinato') || game.status.includes('Masterato') || game.status === 'Masterato/Platinato');
+            
+            if (game.title && game.title.toLowerCase().includes('crash')) {
+                console.log('=== CRASH GAME FILTERING ===');
+                console.log('Title:', game.title);
+                console.log('Status:', game.status);
+                console.log('Platinum Date:', game.platinum_date);
+                console.log('Has Platinum Date:', hasPlatinumDate);
+                console.log('Has Valid Status:', hasValidStatus);
+                console.log('============================');
+            }
+            
+            return hasPlatinumDate && hasValidStatus;
+        })
+        .map(game => {
+            const completionText = game.platinum_date || '';
+            
+            if (game.title && game.title.toLowerCase().includes('crash')) {
+                console.log('=== PARSING CRASH GAME ===');
+                console.log('Title:', game.title);
+                console.log('Platinum Date:', completionText);
+            }
+            
+            const parsed = parseCompletionTime(completionText);
+            
+            if (game.title && game.title.toLowerCase().includes('crash')) {
+                console.log('Parsed Result:', parsed);
+                console.log('=========================');
+            }
+            
+            return {
+                ...game,
+                parsedCompletion: parsed,
+                sortKey: parsed ? parsed.totalMinutes : Infinity
+            };
+        })
+        .filter(game => {
+            const hasCompletion = !!game.parsedCompletion;
+
+            if (game.title && game.title.toLowerCase().includes('crash')) {
+                console.log('=== FINAL FILTER ===');
+                console.log('Title:', game.title);
+                console.log('Has Completion:', hasCompletion);
+                if (!hasCompletion) {
+                    console.log('Reason for exclusion: Could not parse completion time from:', game.platinum_date);
+                }
+                console.log('====================');
+            }
+
+            return hasCompletion;
+        })
+        .sort((a, b) => a.sortKey - b.sortKey) // Sort by total minutes (ascending)
+        .slice(0, 15); // Get top 15 fastest
+    
+    console.log('Filtered and sorted games with completion times:', gamesWithCompletion);
+    
+    // Populate the table
+    gamesWithCompletion.forEach((game, index) => {
+        const tr = document.createElement('tr');
+        const statusClass = getStatusClass(game.status);
+                // Add indicators to specific game titles
+            let displayTitle = escapeHtml(game.title);
+            if (game.title.includes('Spyro Reignited Trilogy')) {
+                displayTitle += ' (SP1)';
+            } else if (game.title.includes('Crash Bandicoot N.Sane Trilogy')) {
+                displayTitle += ' (CB2)';
+            }
+            
+            tr.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${displayTitle}</td>
+                <td>${game.parsedCompletion.display}</td>
+                <td>${escapeHtml(game.platform || 'N/A')}</td>
+            `;
+        
+        tbody.appendChild(tr);
+    });
 }
 
 // Status color mapping
@@ -1455,6 +1875,21 @@ async function loadStatistics() {
             loadingElement.style.display = 'block';
         }
         
+        // First load the played games to get completion times
+        const gamesResponse = await fetch('api/games.php?action=list&section=played');
+        if (!gamesResponse.ok) {
+            throw new Error(`HTTP error! status: ${gamesResponse.status}`);
+        }
+        const gamesData = await gamesResponse.json();
+        
+        // Debug: Log the first game to see its structure
+        if (gamesData.games && gamesData.games.length > 0) {
+            console.log('First played game structure:', gamesData.games[0]);
+            // Log all available fields in the game object
+            console.log('Available fields in game object:', Object.keys(gamesData.games[0]));
+        }
+        
+        // Then load the statistics
         const response = await fetch('api/statistics.php');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -1463,7 +1898,10 @@ async function loadStatistics() {
         const data = await response.json();
         console.log('Received statistics data:', data);
         
-        if (data.success) {
+        if (data.success && gamesData.success) {
+            // Add the played games to the data object for the completion time table
+            data.playedGames = gamesData.games;
+            
             // Render all charts and tables
             if (data.data.status) renderStatusChart(data.data.status);
             if (data.data.platform) renderPlatformChart(data.data.platform);
@@ -1482,6 +1920,11 @@ async function loadStatistics() {
                 renderStatusTable(data.data.status);
                 renderPlatformTable(data.data.platform);
                 renderDifficultyTable(data.data.difficulty);
+                
+                // Render fastest completions table if we have played games
+                if (data.playedGames) {
+                    renderFastestCompletionsTable(data.playedGames);
+                }
             }
         } else {
             console.error('Failed to load statistics:', data.error);
@@ -2116,22 +2559,15 @@ function renderPlayedByYearChart(playedByYearData) {
             }]
         },
         options: {
-            plugins: {
-                legend: {
-                    display: false 
-                }
-            },
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'nearest',
+                intersect: false,
+            },
             plugins: {
                 legend: {
-                    display: true,
-                    labels: {
-                        color: '#ffffff',
-                        font: {
-                            size: 14
-                        }
-                    }
+                    display: false
                 },
                 tooltip: {
                     backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -2213,9 +2649,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (loginForm) {
         loginForm.addEventListener('submit', async function(e) {
             e.preventDefault();
-            const username = document.getElementById('login-username').value;
-            const password = document.getElementById('login-password').value;
-            await login(username, password);
+            const username = document.getElementById('login-username')?.value;
+            const password = document.getElementById('login-password')?.value;
+            if (username && password) {
+                await login(username, password);
+            }
         });
     }
 });

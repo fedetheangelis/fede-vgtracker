@@ -1,3 +1,29 @@
+## [2025-08-07] - Versione 1.8.1
+
+### Miglioramenti
+- **Persistenza Sezione**: La pagina ora ricorda l'ultima sezione visitata (Giochi Giocati, Backlog, Statistiche, ecc.) e la ripristina al ricaricamento
+- **Esperienza Utente**: Navigazione più fluida con il mantenimento dello stato tra i ricarichi della pagina
+
+## [2025-08-07] - Versione 1.8.0
+
+### Aggiunte
+- **Tabella Completamenti Veloce**: Aggiunta tabella "Top 15 Giochi Completati Più Velocemente" nella sezione Statistiche
+  - Supporto per formati di tempo multipli (ore, giorni, mesi, anni)
+  - Gestione speciale per giochi con più voci (es: trilogie)
+  - Indicazione specifica per giochi multipli (es: "(CB2)" per Crash Bandicoot N.Sane Trilogy)
+  - Ordinamento automatico per tempo di completamento più veloce
+
+### Miglioramenti
+- **Parser Tempi di Completamento**:
+  - Supporto per formati complessi (es: "X giorni, Y ore")
+  - Gestione di più voci di tempo per lo stesso gioco
+  - Migliorata la gestione degli errori per formati non standard
+
+### Correzioni di Bug
+- Risolto problema di visualizzazione per giochi con stati composti (es: "Masterato/Platinato")
+- Corretto l'ordinamento dei tempi di completamento
+- Migliorata la gestione dei valori mancanti o non validi
+
 ## [2025-07-28] - Versione 1.7.2
 
 ### Aggiunte

@@ -303,6 +303,26 @@ initializeDatabase();
                                 </table>
                             </div>
                         </div>
+
+                        <!-- Fastest Completions -->
+                        <div class="stat-card full-width">
+                            <h3>Top 15 Giochi Platinati/Masterati Più Velocemente</h3>
+                            <div class="chart-table">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Posizione</th>
+                                            <th>Titolo</th>
+                                            <th>Tempo di Completamento</th>
+                                            <th>Piattaforma</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="fastestCompletionsBody">
+                                        <!-- Will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -599,6 +619,40 @@ initializeDatabase();
                     <button type="submit" class="btn-primary">Login</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Game Details Modal (for non-admin users) -->
+    <div id="game-details-modal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 id="game-details-title">Dettagli Gioco</h3>
+                <button class="modal-close" onclick="closeGameDetailsModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="game-details-content">
+                <div class="game-details-grid">
+                    <div class="game-cover-container">
+                        <img id="game-details-cover" src="" alt="Game Cover" class="game-details-cover">
+                    </div>
+                    <div class="game-info-container">
+                        <div class="game-meta">
+                            <span id="game-details-platform" class="platform-badge"></span>
+                            <span id="game-details-status" class="status-badge"></span>
+                        </div>
+                        <div id="game-details-scores" class="game-scores"></div>
+                        <div id="game-details-dates" class="game-dates"></div>
+                    </div>
+                </div>
+                <div class="game-review-container">
+                    <h4>Recensione</h4>
+                    <div id="game-details-review" class="game-review"></div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" onclick="closeGameDetailsModal()">Chiudi</button>
+            </div>
         </div>
     </div>
 

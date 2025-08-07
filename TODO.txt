@@ -1,3 +1,1 @@
-fare in modo che lo spettatore possa cliccare sul gioco singolo per vedere le info approfondite senza modificarle
-add tabelle top 15 giochi 100% piu velocemente
-il pallino giochi giocati dal grafico distr anni puo essere tolto? - problemi riscontrati nel farlo
+niente, per ora!!

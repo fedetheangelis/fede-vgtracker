@@ -1544,6 +1544,98 @@ select:focus, input:focus, textarea:focus {
     text-decoration: underline;
 }
 
+/* Game Details Modal */
+.game-details-content {
+    padding: 20px;
+}
+
+.game-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.game-cover-container {
+    position: relative;
+    width: 100%;
+    padding-top: 56.25%; /* 16:9 Aspect Ratio (height/width = 9/16 = 0.5625) */
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.game-details-cover {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+.game-info-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.game-meta {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.game-scores {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.score-badge {
+    background-color: var(--bg-secondary);
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color);
+}
+
+.game-dates {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.game-date {
+    background-color: var(--bg-secondary);
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color);
+}
+
+.game-review-container {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.game-review {
+    line-height: 1.6;
+    white-space: pre-line;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .info-content,
@@ -1559,6 +1651,24 @@ select:focus, input:focus, textarea:focus {
     .info-section h3,
     .changelog-content h3 {
         font-size: 1.2rem;
+    }
+    
+    .game-details-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .game-cover-container {
+        max-width: 100%;
+        margin: 0 auto;
+    }
+    
+    .game-details-content {
+        padding: 15px;
+    }
+    
+    .game-meta {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }
 

@@ -1,3 +1,14 @@
+## [2025-08-10] - Versione 1.9.0
+
+### Miglioramenti
+- **Modal Dettagli Gioco**: Rivista completamente la modale dei dettagli per gli utenti non amministratori
+  - Aggiunti tutti i voti disponibili (Voto, Aesthetic, OST, Difficoltà)
+  - Inclusi i metadati completi (Ore di gioco, Percentuale trofei, Replay completati)
+  - Aggiunte le date importanti (Prima volta giocato, Ultima volta finito, Platinato/Masterato in)
+  - Interfaccia coerente con badge stilizzati e icone intuitive
+  - Immagine di copertina con rapporto d'aspetto 16:9
+  - Design responsive che si adatta a tutti i dispositivi
+
 ## [2025-08-07] - Versione 1.8.1
 
 ### Miglioramenti

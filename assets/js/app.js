@@ -274,36 +274,106 @@ function openGameDetailsModal(game) {
     status.textContent = game.status;
     status.className = 'status-badge ' + getStatusClass(game.status);
 
-    // Set scores
+    // Set scores and metadata
     scores.innerHTML = '';
+    
+    // Voto Totale
     if (game.total_score) {
         const scoreBadge = document.createElement('div');
         scoreBadge.className = 'score-badge';
-        scoreBadge.innerHTML = `<i class="fas fa-star"></i> Voto: ${game.total_score}/10`;
+        scoreBadge.innerHTML = `⭐ Voto: ${game.total_score}/10`;
         scores.appendChild(scoreBadge);
     }
 
+    // Voto Aesthetic
+    if (game.aesthetic_score) {
+        const aestheticBadge = document.createElement('div');
+        aestheticBadge.className = 'score-badge';
+        aestheticBadge.innerHTML = `🌌 Aesthetic: ${game.aesthetic_score}/10`;
+        scores.appendChild(aestheticBadge);
+    }
+
+    // Voto OST
+    if (game.ost_score) {
+        const ostBadge = document.createElement('div');
+        ostBadge.className = 'score-badge';
+        ostBadge.innerHTML = `🎶 OST: ${game.ost_score}/10`;
+        scores.appendChild(ostBadge);
+    }
+
+    // Difficoltà
     if (game.difficulty) {
         const diffBadge = document.createElement('div');
         diffBadge.className = 'score-badge';
-        diffBadge.innerHTML = `<i class="fas fa-tachometer-alt"></i> Difficoltà: ${game.difficulty}/10`;
+        diffBadge.innerHTML = `🔥 Difficoltà: ${game.difficulty}/10`;
         scores.appendChild(diffBadge);
     }
 
-    // Set dates
+    // Ore di gioco
+    if (game.playtime) {
+        const playtimeBadge = document.createElement('div');
+        playtimeBadge.className = 'score-badge';
+        playtimeBadge.innerHTML = `⏳ Ore di gioco: ${game.playtime}`;
+        scores.appendChild(playtimeBadge);
+    }
+
+    // Percentuale trofei
+    if (game.trophy_percentage) {
+        const trophyBadge = document.createElement('div');
+        trophyBadge.className = 'score-badge';
+        trophyBadge.innerHTML = `🏆 Trofei: ${game.trophy_percentage}%`;
+        scores.appendChild(trophyBadge);
+    }
+
+    // Replay completati
+    if (game.replays) {
+        const replayBadge = document.createElement('div');
+        replayBadge.className = 'score-badge';
+        replayBadge.innerHTML = `🔁 Replay: ${game.replays}`;
+        scores.appendChild(replayBadge);
+    }
+
+    // Set dates and other metadata
     dates.innerHTML = '';
+    
+    // Prima volta giocato
+    if (game.first_played) {
+        const firstPlayedElement = document.createElement('div');
+        firstPlayedElement.className = 'game-date';
+        firstPlayedElement.innerHTML = `🚀 Prima volta giocato: ${game.first_played}`;
+        dates.appendChild(firstPlayedElement);
+    }
+    
+    // Ultima volta finito
+    if (game.last_finished) {
+        const lastFinishedElement = document.createElement('div');
+        lastFinishedElement.className = 'game-date';
+        lastFinishedElement.innerHTML = `🏁 Ultima volta finito: ${game.last_finished}`;
+        dates.appendChild(lastFinishedElement);
+    }
+    
+    // Completato il
     if (game.completion_date) {
         const dateElement = document.createElement('div');
         dateElement.className = 'game-date';
-        dateElement.innerHTML = `<i class="far fa-calendar-check"></i> Completato il: ${game.completion_date}`;
+        dateElement.innerHTML = `📅 Completato il: ${game.completion_date}`;
         dates.appendChild(dateElement);
     }
 
+    // Tempo di completamento
     if (game.completion_time) {
         const timeElement = document.createElement('div');
         timeElement.className = 'game-date';
-        timeElement.innerHTML = `<i class="far fa-clock"></i> Tempo di completamento: ${game.completion_time}`;
+        timeElement.innerHTML = `⏱️ Tempo di completamento: ${game.completion_time}`;
         dates.appendChild(timeElement);
+    }
+    
+    // Platinato/Masterato in
+    if (game.platinum_date) {
+        const platinumElement = document.createElement('div');
+        platinumElement.className = 'game-date';
+        platinumElement.innerHTML = `🏅 Platinato/Masterato in: ${game.platinum_date}`;
+        dates.appendChild(platinumElement);
     }
 
     // Set review

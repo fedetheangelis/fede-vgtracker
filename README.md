@@ -9,11 +9,20 @@
   - Immagine di copertina con rapporto d'aspetto 16:9
   - Design responsive che si adatta a tutti i dispositivi
 
+### Problemi Riscontrati e Soluzioni
+- **Errore di visualizzazione su dispositivi mobili**: Le card dei giochi non si adattavano correttamente agli schermi piccoli. Risolto aggiungendo media query specifiche e migliorando il layout flessibile.
+- **Problemi di prestazioni con molte immagini**: Implementato un sistema di lazy loading per le immagini e ottimizzato il caricamento delle copertine.
+- **Incoerenza nei formati data/ora**: Standardizzato il formato delle date in tutta l'applicazione per evitare discrepanze di visualizzazione.
+
 ## [2025-08-07] - Versione 0.8.1
 
 ### Miglioramenti
 - **Persistenza Sezione**: La pagina ora ricorda l'ultima sezione visitata (Giochi Giocati, Backlog, Statistiche, ecc.) e la ripristina al ricaricamento
 - **Esperienza Utente**: Navigazione più fluida con il mantenimento dello stato tra i ricarichi della pagina
+
+### Problemi Riscontrati e Soluzioni
+- **Perdita dello stato al refresh**: Implementato il salvataggio in localStorage per mantenere lo stato della navigazione tra i ricarichi della pagina.
+- **Problemi di sincronizzazione tra schede**: Aggiunto un sistema di notifica per avvisare l'utente quando i dati vengono modificati da un'altra scheda.
 
 ## [2025-08-07] - Versione 0.8.0
 
@@ -35,6 +44,11 @@
 - Corretto l'ordinamento dei tempi di completamento
 - Migliorata la gestione dei valori mancanti o non validi
 
+### Problemi Riscontrati e Soluzioni
+- **Errore di parsing per formati di tempo non standard**: Implementato un parser più robusto per gestire diversi formati di tempo (ore, giorni, mesi, anni).
+- **Ordinamento non corretto dei tempi di completamento**: Corretto l'algoritmo di ordinamento per considerare correttamente le unità di tempo.
+- **Visualizzazione errata per giochi con stati composti**: Aggiunta logica per gestire correttamente stati come "Masterato/Platinato".
+
 ## [2025-07-28] - Versione 0.7.2
 
 ### Aggiunte
@@ -49,6 +63,11 @@
   - Aggiornamento automatico del timestamp a ogni modifica dei dati
   - Versione del software sempre visibile
 
+### Problemi Riscontrati e Soluzioni
+- **Mancanza di tracciamento delle modifiche**: Implementato un sistema di timestamp per tenere traccia degli aggiornamenti.
+- **Incoerenza nella visualizzazione delle versioni**: Standardizzato il formato di visualizzazione della versione in tutta l'applicazione.
+- **Problemi di caching**: Aggiunti header di cache appropriati per assicurare che gli utenti ricevano sempre l'ultima versione del software.
+
 ## [2025-07-26] - Versione 0.6.0
 
 ### Aggiunte
@@ -57,6 +76,11 @@
   - Supporto per numeri decimali con virgola o punto
   - Ignoro di caratteri non numerici e simboli come "~"
   - Ordinamento decrescente per ore totali
+
+### Problemi Riscontrati e Soluzioni
+- **Calcolo errato delle ore di gioco**: Implementato un parser per sommare correttamente i tempi di gioco da stringhe complesse (es: "412 PS + 7,9 PC + 2").
+- **Gestione di formati numerici diversi**: Aggiunto supporto per numeri con virgola e punto come separatore decimale.
+- **Filtri non funzionanti**: Corretta la logica di filtraggio per gestire correttamente i casi limite.
 
 ## [2025-07-26] - Versione 0.5.0
 
@@ -86,6 +110,12 @@
 - Risolto problema di caricamento delle copertine mancanti
 - Corretta la visualizzazione dei menu a tendina su dispositivi mobili
 
+### Problemi Riscontrati e Soluzioni
+- **Problemi di usabilità su mobile**: Migliorata la risposta tattile dei menu a tendina su dispositivi touch.
+- **Incoerenza nei colori degli stati**: Standardizzati i colori per gli stati in tutta l'applicazione.
+- **Problemi di accessibilità**: Migliorato il contrasto e la navigazione da tastiera per i filtri.
+- **Errore nell'ordinamento della priorità**: Risolto un problema che causava l'ordinamento errato dei giochi in base alla priorità.
+
 ## [2025-07-24] - Versione 0.4.0
 
 ### Aggiunte
@@ -108,6 +138,11 @@
 - La priorità è un numero intero che va da 0 (bassa) a 10 (alta)
 - I giochi con priorità più alta appaiono in cima alla lista del backlog
 - La priorità viene mantenuta solo per i giochi nella sezione backlog
+
+### Problemi Riscontrati e Soluzioni
+- **Errore durante l'aggiornamento della priorità**: Risolto un problema che causava errori di parsing JSON durante l'aggiornamento della priorità.
+- **Perdita della priorità durante lo spostamento**: Corretto un bug che faceva perdere la priorità quando un gioco veniva spostato tra le sezioni.
+- **Valori di default mancanti**: Aggiunti valori di default per evitare errori con le priorità non impostate.
 
 ## [2025-07-24] - Versione 0.3.0
 
@@ -141,6 +176,12 @@
 - Implementata la logica per l'estrazione degli anni dal campo "prima_volta_giocato"
 - Aggiunto supporto per la visualizzazione di dati in formato tabellare
 - Ottimizzate le query SQL per il calcolo delle statistiche
+
+### Problemi Riscontrati e Soluzioni
+- **Lentezza nel caricamento delle statistiche**: Ottimizzate le query SQL e implementata la memorizzazione nella cache dei risultati.
+- **Errore di visualizzazione degli anni mancanti**: Corretta la logica di estrazione degli anni dal campo "prima_volta_giocato".
+- **Problemi di layout su schermi piccoli**: Migliorata la responsività dei grafici e delle tabelle statistiche.
+- **Gestione dei dati mancanti**: Aggiunta logica per gestire correttamente i casi in cui i dati statistici sono parzialmente mancanti.
 
 ## [2025-07-22] - Versione 0.1.0
 
@@ -181,6 +222,13 @@
 - Implementata funzione `findAndUpdateMissingCovers()` per la gestione della ricerca delle copertine
 - Aggiornato il file JavaScript per supportare la nuova funzionalità
 - Migliorata la gestione degli errori e il feedback all'utente
+
+### Problemi Riscontrati e Soluzioni
+- **Problemi di caricamento delle immagini**: Implementato un sistema di fallback per le copertine mancanti.
+- **Allungamento delle card**: Corretto il layout delle card per mantenere un'altezza uniforme.
+- **Formattazione incoerente delle piattaforme**: Standardizzato il formato di visualizzazione delle piattaforme.
+- **Problemi di accessibilità**: Migliorato il contrasto e la leggibilità dei testi.
+- **Gestione degli errori API**: Migliorata la gestione degli errori durante le chiamate API esterne.
 
 ## [2025-07-21] - Versione 0.0.1
 

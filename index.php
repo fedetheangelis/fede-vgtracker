@@ -119,6 +119,8 @@ initializeDatabase();
                             <select id="sort-played">
                                 <option value="title">Ordina per Titolo</option>
                                 <option value="total_score">Voto Totale</option>
+                                <option value="ost_score">Voto OST</option>
+                                <option value="aesthetic_score">Voto Aesthetic</option>
                                 <option value="playtime">Ore di Gioco</option>
                                 <option value="difficulty">Difficoltà</option>
                                 <option value="first_played">Prima volta giocato</option>
@@ -192,6 +194,8 @@ initializeDatabase();
                             <select id="sort-backlog">
                                 <option value="title">Ordina per Titolo</option>
                                 <option value="platform">Piattaforma</option>
+                                <option value="ost_score">Voto OST</option>
+                                <option value="aesthetic_score">Voto Aesthetic</option>
                                 <option value="added_date">Data Aggiunta</option>
                             </select>
                             <button class="btn-secondary" onclick="toggleSortOrder('backlog')">
@@ -480,7 +484,7 @@ initializeDatabase();
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <form id="game-form">
+            <form id="game-form" onsubmit="event.preventDefault(); handleGameSubmit(event);" accept-charset="UTF-8">
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="game-title">Titolo *</label>
@@ -540,6 +544,7 @@ initializeDatabase();
                             <option value="Masterato/Platinato">Masterato/Platinato</option>
                             <option value="Completato (100%)">Completato (100%)</option>
                             <option value="Finito">Finito</option>
+                            <option value="DA RIGIOCARE">DA RIGIOCARE</option>
                             <option value="In Pausa">In Pausa</option>
                             <option value="In Corso">In Corso</option>
                             <option value="Droppato">Droppato</option>
@@ -607,16 +612,12 @@ initializeDatabase();
             </div>
             <form id="login-form">
                 <div class="form-group">
-                    <label for="login-username">Username</label>
-                    <input type="text" id="login-username" name="username" required>
-                </div>
-                <div class="form-group">
-                    <label for="login-password">Password</label>
-                    <input type="password" id="login-password" name="password" required>
+                    <label for="login-password">Password Admin</label>
+                    <input type="password" id="login-password" name="password" required autofocus>
                 </div>
                 <div class="form-actions">
                     <button type="button" class="btn-secondary" onclick="closeLoginModal()">Annulla</button>
-                    <button type="submit" class="btn-primary">Login</button>
+                    <button type="submit" class="btn-primary">Accedi</button>
                 </div>
             </form>
         </div>

@@ -1,1 +1,9 @@
-niente, per ora !!
+
+se il gioco non ha un determinato parametro (ad esempio voto ost)
+viene nascosto quando si clicca sull'"ordina per" corrispettivo.
+
+applica questa cosa solo per voto ost, aetsthetic
+
+
+
+

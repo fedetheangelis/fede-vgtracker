@@ -1,4 +1,4 @@
-# FEDE'S VG TRACKER - RELEASE 1.0.0
+## [2025-09-18] - # FEDE'S VG TRACKER - RELEASE 1.0.0
 
 ### Novità in questa Versione
 - **Release Ufficiale**: Primo release stabile pubblicato su InfinityFree

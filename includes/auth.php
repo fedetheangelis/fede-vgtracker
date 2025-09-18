@@ -1,20 +1,18 @@
 <?php
 session_start();
 
-// Admin credentials (in production, these should be in environment variables or database)
-define('ADMIN_USERNAME', 'fef');
-define('ADMIN_PASSWORD', 'sempiternaltrk!'); // Secure password
+// Admin password
+define('ADMIN_PASSWORD', 'nice try lol');
 
 // Check if user is logged in as admin
 function isAdmin() {
     return isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true;
 }
 
-// Login function
-function login($username, $password) {
-    if ($username === ADMIN_USERNAME && $password === ADMIN_PASSWORD) {
+// Login function - now only requires password
+function login($password) {
+    if ($password === ADMIN_PASSWORD) {
         $_SESSION['is_admin'] = true;
-        $_SESSION['admin_username'] = $username;
         $_SESSION['login_time'] = time();
         return true;
     }
@@ -41,13 +39,12 @@ function getCurrentUser() {
     if (isAdmin()) {
         return [
             'is_admin' => true,
-            'username' => $_SESSION['admin_username'] ?? 'admin',
+            'username' => 'admin',
             'login_time' => $_SESSION['login_time'] ?? null
         ];
     }
     return [
         'is_admin' => false,
-        'username' => null,
         'login_time' => null
     ];
 }

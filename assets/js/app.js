@@ -8,6 +8,14 @@ let isLoadingImages = false;
 const IMAGES_PER_BATCH = 20;
 const BATCH_DELAY = 5000; // 5 seconds between batches
 
+// API Configuration
+const API_BASE_URL = '/api';
+const API_ENDPOINTS = {
+    GAMES: `${API_BASE_URL}/games_improved.php`,
+    AUTH: `${API_BASE_URL}/auth.php`,
+    STATS: `${API_BASE_URL}/statistics.php`
+};
+
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     // Ensure admin-only elements are hidden by default
@@ -17,6 +25,24 @@ document.addEventListener('DOMContentLoaded', function() {
     checkAuthStatus();
     loadGames('played');
     setupEventListeners();
+    
+    // Set up sort dropdown event listeners
+    const sortPlayed = document.getElementById('sort-played');
+    const sortBacklog = document.getElementById('sort-backlog');
+    
+    if (sortPlayed) {
+        sortPlayed.addEventListener('change', function() {
+            currentSort.played = this.value;
+            loadGames('played');
+        });
+    }
+    
+    if (sortBacklog) {
+        sortBacklog.addEventListener('change', function() {
+            currentSort.backlog = this.value;
+            loadGames('backlog');
+        });
+    }
     
     // Set up TSV file upload
     const tsvFileInput = document.getElementById('tsv-file');
@@ -132,10 +158,33 @@ function setupEventListeners() {
         });
     }
     
-    // Game form submission
+    // Game form submission - using a named function to ensure we can remove it if needed
     const gameForm = document.getElementById('game-form');
     if (gameForm) {
-        gameForm.addEventListener('submit', handleGameSubmit);
+        // First remove any existing submit event listeners to prevent duplicates
+        const newForm = gameForm.cloneNode(true);
+        gameForm.parentNode.replaceChild(newForm, gameForm);
+        
+        // Add a single submit handler
+        newForm.addEventListener('submit', async function gameFormSubmit(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Prevent double submission
+            if (this.dataset.submitting === 'true') {
+                console.log('Form submission already in progress');
+                return;
+            }
+            
+            try {
+                this.dataset.submitting = 'true';
+                await handleGameSubmit(e);
+            } catch (error) {
+                console.error('Error in form submission:', error);
+            } finally {
+                this.dataset.submitting = 'false';
+            }
+        });
     }
     
     // Cover URL input change
@@ -190,25 +239,125 @@ function switchSection(section) {
 }
 
 async function loadGames(section, showLoading = true) {
-    const container = document.getElementById(`${section}-games`);
+    const gamesContainer = document.getElementById(`${section}-games`);
+    const loadingElement = document.getElementById(`${section}-loading`);
+    const errorElement = document.getElementById(`${section}-error`);
     
-    // Only show loading spinner if explicitly requested (initial load)
     if (showLoading) {
-        container.innerHTML = '<div class="loading"></div>';
+        currentSection = section;
+        if (gamesContainer) gamesContainer.innerHTML = '';
+        if (loadingElement) loadingElement.style.display = 'block';
+        if (errorElement) errorElement.style.display = 'none';
     }
     
     try {
-        const response = await fetch(`api/games.php?action=list&section=${section}&sort=${currentSort[section]}&order=${currentOrder[section]}`);
-        const data = await response.json();
+        // Get current sort settings
+        const sortBy = currentSort[section] || 'title';
+        const orderBy = currentOrder[section] || 'ASC';
         
-        if (data.success) {
-            displayGames(data.games, section);
-        } else {
-            container.innerHTML = '<p>Errore nel caricamento dei giochi</p>';
+        // Build URL with query parameters
+        const url = new URL(API_ENDPOINTS.GAMES, window.location.origin);
+        url.searchParams.append('action', 'list');
+        url.searchParams.append('section', section);
+        url.searchParams.append('sort', sortBy);
+        url.searchParams.append('order', orderBy);
+        
+        console.log('Fetching games from:', url.toString());
+        
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'include',
+            cache: 'no-store' // Prevent caching issues
+        });
+        
+        // Get response text first for debugging
+        const responseText = await response.text();
+        console.log('Raw response:', responseText);
+        
+        // Try to parse JSON
+        let data;
+        try {
+            data = responseText ? JSON.parse(responseText) : {};
+        } catch (e) {
+            console.error('Failed to parse JSON:', e, 'Response:', responseText);
+            throw new Error('Formato della risposta non valido dal server');
         }
+        
+        console.log('Parsed data:', data);
+        
+        // Handle API response
+        if (!response.ok) {
+            const errorMsg = data?.message || 
+                           `Errore del server: ${response.status} ${response.statusText}`;
+            throw new Error(errorMsg);
+        }
+        
+        if (data.status !== 'success') {
+            throw new Error(data.message || 'Errore nel caricamento dei giochi');
+        }
+        
+        // Check if we have valid games data
+        const games = Array.isArray(data.games) ? data.games : [];
+        console.log(`Found ${games.length} games in section:`, section);
+        
+        console.log(`Loaded ${games.length} games for section:`, section);
+        
+        // Display the games
+        displayGames(games, section);
+        
+        // Update game counters
+        updateGameCounters();
+        
+        // Save last visited section
+        localStorage.setItem('lastVisitedSection', section);
+        
+        // Update URL without page reload
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.set('section', section);
+        window.history.pushState({}, '', newUrl);
+        
+        // Load statistics if needed
+        if (section === 'statistics') {
+            loadStatistics();
+        }
+        
     } catch (error) {
         console.error('Error loading games:', error);
-        container.innerHTML = '<p>Errore di connessione</p>';
+        
+        // Show error message in the UI
+        const errorHtml = `
+            <div class="error-message">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>${error.message || 'Errore nel caricamento dei giochi'}</p>
+                <button onclick="loadGames('${section}', true)" class="btn">
+                    <i class="fas fa-sync-alt"></i> Riprova
+                </button>
+            </div>
+        `;
+        
+        if (errorElement) {
+            errorElement.innerHTML = errorHtml;
+            errorElement.style.display = 'block';
+        } else if (gamesContainer) {
+            gamesContainer.innerHTML = errorHtml;
+        }
+        
+        // Show error notification
+        showNotification(
+            `Errore: ${error.message || 'Impossibile caricare i giochi'}`,
+            'error',
+            5000
+        );
+        
+    } finally {
+        // Hide loading indicator
+        if (loadingElement) {
+            loadingElement.style.display = 'none';
+        }
     }
 }
 
@@ -770,23 +919,62 @@ function openAddGameModal(section) {
 
 async function openEditGameModal(gameId) {
     editingGameId = gameId;
-    document.getElementById('modal-title').textContent = 'Modifica Gioco';
+    const modal = document.getElementById('game-modal');
     
     try {
-        const response = await fetch(`api/games.php?action=get&id=${gameId}`);
-        const data = await response.json();
+        // Show loading state
+        const modalContent = modal.querySelector('.modal-content');
+        const originalContent = modalContent ? modalContent.innerHTML : '';
         
-        if (data.success) {
-            // Set the section before populating the form
-            const section = data.game.section || 'played'; // Default to 'played' if section is not set
-            document.getElementById('game-form').dataset.section = section;
-            
-            // Populate the form with game data
-            populateGameForm(data.game);
-            
-            // Now update the status dropdown based on the section
-            const statusSelect = document.getElementById('game-status');
-            const currentStatus = statusSelect.value;
+        if (modalContent) {
+            modalContent.innerHTML = `
+                <div class="loading-spinner" style="text-align: center; padding: 2rem;">
+                    <i class="fas fa-spinner fa-spin fa-2x" style="color: var(--primary-color);"></i>
+                    <p>Caricamento in corso...</p>
+                </div>
+            `;
+        }
+        
+        modal.classList.add('active');
+        
+        // Fetch game data
+        const response = await fetch(`api/games_improved.php?action=get&id=${gameId}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'include',
+            cache: 'no-store',
+            mode: 'cors'
+        });
+
+        // Restore original content in case of error
+        if (!response.ok) {
+            if (modalContent) modalContent.innerHTML = originalContent;
+            throw new Error('Failed to fetch game data: ' + response.statusText);
+        }
+
+        const result = await response.json();
+        console.log('API Response:', result);
+        
+        if (result.status !== 'success' || !result.data) {
+            throw new Error('Invalid response format from server');
+        }
+        
+        // Restore original content before populating
+        if (modalContent) modalContent.innerHTML = originalContent;
+        
+        // Log the data we're about to pass to populateGameForm
+        console.log('Game data to populate:', result.data);
+        
+        // Pass just the data we need to populate the form
+        populateGameForm(result.data);
+        
+        // Get the status select element and current status
+        const statusSelect = document.getElementById('status');
+        if (statusSelect) {
+            const currentStatus = statusSelect.value || '';
             
             // Clear existing options except the first one
             while (statusSelect.options.length > 1) {
@@ -805,7 +993,8 @@ async function openEditGameModal(gameId) {
                 'Online/Senza Fine'
             ];
             
-            // Add backlog-specific statuses
+            // Add backlog-specific statuses if needed
+            const section = result.data.section || 'played';
             if (section === 'backlog') {
                 commonStatuses.push('Da Recuperare', 'Da Rigiocare');
             }
@@ -819,49 +1008,135 @@ async function openEditGameModal(gameId) {
             });
             
             // Set the current status if it exists in the new options
-            if (currentStatus) {
+            if (currentStatus && commonStatuses.includes(currentStatus)) {
                 statusSelect.value = currentStatus;
+            } else if (statusSelect.options.length > 0) {
+                statusSelect.selectedIndex = 0;
             }
-            
-            document.getElementById('game-modal').classList.add('active');
-        } else {
-            alert('Errore nel caricamento del gioco');
         }
+        
+        // Update modal title and show
+        document.getElementById('modal-title').textContent = 'Modifica Gioco';
+        modal.classList.add('active');
     } catch (error) {
         console.error('Error loading game:', error);
-        alert('Errore di connessione');
+        
+        // Show error message in the modal
+        modal.innerHTML = `
+            <div class="modal-content" style="text-align: center; padding: 2rem;">
+                <h3>Errore</h3>
+                <p>${error.message || 'Impossibile caricare i dati del gioco'}</p>
+                <button onclick="closeGameModal()" class="btn">Chiudi</button>
+            </div>
+        `;
+        modal.classList.add('active');
     }
 }
 
-function populateGameForm(game) {
-    document.getElementById('game-title').value = game.title || '';
-    document.getElementById('game-playtime').value = game.playtime || '';
-    document.getElementById('game-total-score').value = game.total_score || '';
-    document.getElementById('game-aesthetic-score').value = game.aesthetic_score || '';
-    document.getElementById('game-ost-score').value = game.ost_score || '';
-    document.getElementById('game-difficulty').value = game.difficulty || '';
-    document.getElementById('game-status').value = game.status || '';
-    document.getElementById('game-trophy-percentage').value = game.trophy_percentage || '';
-    document.getElementById('game-platinum-date').value = game.platinum_date || '';
-    document.getElementById('game-replays').value = game.replays || '';
-    document.getElementById('game-first-played').value = game.first_played || '';
-    document.getElementById('game-last-finished').value = game.last_finished || '';
-    document.getElementById('game-review').value = game.review || '';
-    document.getElementById('game-cover').value = game.cover_url || '';
+function populateGameForm(response) {
+    console.log('Populating form with response:', response);
     
-    // Set platforms
-    const platforms = game.platform ? game.platform.split(', ') : [];
-    document.querySelectorAll('input[name="platform[]"]').forEach(checkbox => {
-        checkbox.checked = platforms.includes(checkbox.value);
-    });
+    // Get the actual game data (it's in response.data.data)
+    const gameData = response.data?.data || response.data || response;
+    console.log('Using game data:', gameData);
     
-    // Update cover preview
-    if (game.cover_url) {
-        updateCoverPreview(game.cover_url);
+    if (!gameData) {
+        console.error('No game data found in response');
+        return;
     }
     
-    // Remember the section
-    document.getElementById('game-form').dataset.section = game.section;
+    // Set form values with proper null checks
+    const setValue = (id, value) => {
+        // First try with hyphenated ID (e.g., 'game-total-score')
+        const hyphenatedId = 'game-' + id.replace(/_/g, '-');
+        let element = document.getElementById(hyphenatedId);
+        
+        // If not found, try with underscore (e.g., 'game-total_score')
+        if (!element) {
+            const underscoredId = 'game-' + id;
+            element = document.getElementById(underscoredId);
+            if (element) {
+                console.log(`Found element with ID ${underscoredId} (fallback)`);
+            }
+        } else {
+            console.log(`Found element with ID ${hyphenatedId}`);
+        }
+        
+        if (element) {
+            const finalValue = value !== null && value !== undefined ? value : '';
+            element.value = finalValue;
+            console.log(`Setting ${element.id} to:`, finalValue);
+        } else {
+            console.warn(`Element with ID game-${id} (or variations) not found`);
+        }
+    };
+    
+    try {
+        // Set all form fields with proper field names
+        setValue('title', gameData.title);
+        setValue('playtime', gameData.playtime);
+        setValue('total-score', gameData.total_score);
+        setValue('aesthetic-score', gameData.aesthetic_score);
+        setValue('ost-score', gameData.ost_score);
+        setValue('difficulty', gameData.difficulty);
+        setValue('status', gameData.status);
+        setValue('trophy-percentage', gameData.trophy_percentage);
+        
+        // Format dates if they exist
+        const formatDate = (dateString) => {
+            if (!dateString) return '';
+            // Try to parse the date string
+            const date = new Date(dateString);
+            return isNaN(date.getTime()) ? dateString : date.toISOString().split('T')[0];
+        };
+        
+        setValue('platinum-date', formatDate(gameData.platinum_date));
+        setValue('first-played', formatDate(gameData.first_played));
+        setValue('last-finished', formatDate(gameData.last_finished));
+        
+        // Handle other fields
+        setValue('replays', gameData.replays);
+        setValue('review', gameData.review);
+        setValue('cover', gameData.cover_url);
+        
+        // Handle platform checkboxes
+        console.log('Raw platform data from API:', gameData.platform);
+        
+        // Handle both string (comma-separated) and array formats
+        let platforms = [];
+        if (Array.isArray(gameData.platform)) {
+            platforms = gameData.platform;
+        } else if (typeof gameData.platform === 'string') {
+            platforms = gameData.platform.split(/\s*,\s*/).filter(Boolean);
+        }
+        
+        console.log('Processed platforms for checkboxes:', platforms);
+        
+        document.querySelectorAll('input[name="platform[]"]').forEach(checkbox => {
+            const isChecked = platforms.some(platform => 
+                platform.trim().toLowerCase() === checkbox.value.toLowerCase()
+            );
+            checkbox.checked = isChecked;
+            console.log(`Setting platform ${checkbox.value} to ${isChecked}`);
+        });
+        
+        // Update cover preview if cover URL exists
+        if (gameData.cover_url) {
+            console.log('Updating cover preview with URL:', gameData.cover_url);
+            updateCoverPreview(gameData.cover_url);
+        } else {
+            console.log('No cover URL provided');
+        }
+        
+        // Set the section
+        const section = gameData.section || 'played';
+        document.getElementById('game-form').dataset.section = section;
+        console.log('Section set to:', section);
+        
+    } catch (error) {
+        console.error('Error populating form:', error);
+        throw error;
+    }
 }
 
 function closeGameModal() {
@@ -869,97 +1144,222 @@ function closeGameModal() {
     editingGameId = null;
 }
 
-async function handleGameSubmit(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(e.target);
-    const gameData = {};
-    
-    // Get all form fields
-    for (let [key, value] of formData.entries()) {
-        // Skip file inputs and empty values
-        if (value instanceof File || value === '') continue;
-        
-        if (key === 'platform[]') {
-            if (!gameData.platform) gameData.platform = [];
-            gameData.platform.push(value);
-        } else if (key.endsWith('[]')) {
-            // Handle other array fields if any
-            const fieldName = key.slice(0, -2);
-            if (!gameData[fieldName]) gameData[fieldName] = [];
-            gameData[fieldName].push(value);
-        } else {
-            gameData[key] = value;
-        }
-    }
-    
-    // Set section
-    gameData.section = e.target.dataset.section || currentSection;
-    
-    // Convert empty strings to null for optional fields
-    Object.keys(gameData).forEach(key => {
-        if (gameData[key] === '') {
-            gameData[key] = null;
-        }
-    });
-    
+async function updateGameDirectly(gameId, gameData) {
     try {
-        const url = 'api/games.php';
-        const method = editingGameId ? 'PUT' : 'POST';
-        const requestData = {
-            action: editingGameId ? 'update' : 'add',
-            game: gameData
-        };
-
-        if (editingGameId) {
-            requestData.id = editingGameId;
-        }
-
-        console.log('Sending request to:', url);
-        console.log('Method:', method);
-        console.log('Data:', requestData);
-
-        const response = await fetch(url, {
-            method: method,
-            headers: { 
+        console.log('Updating game with ID:', gameId);
+        console.log('Update data:', gameData);
+        
+        const response = await fetch('api/games_improved.php', {
+            method: 'POST',
+            headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
             },
-            body: JSON.stringify(requestData)
+            credentials: 'include',
+            body: JSON.stringify({
+                id: gameId,
+                ...gameData,
+                section: currentSection
+            })
         });
 
-        console.log('Response status:', response.status);
-        
+        const result = await response.json();
+        console.log('Update response:', result);
+
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Server responded with error:', errorText);
-            throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+            throw new Error(result.message || 'Errore durante l\'aggiornamento del gioco');
         }
 
-        let result;
-        try {
-            const responseText = await response.text();
-            console.log('Response text:', responseText);
-            result = JSON.parse(responseText);
-        } catch (parseError) {
-            console.error('Error parsing JSON response:', parseError);
-            throw new Error('Invalid JSON response from server');
+        return result;
+    } catch (error) {
+        console.error('Error updating game:', error);
+        throw error;
+    }
+}
+
+async function handleGameSubmit(e) {
+    console.log('handleGameSubmit called');
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Default form submission prevented');
+    
+    const form = e.target;
+    console.log('Form element:', form);
+    
+    // Prevent multiple submissions
+    if (form.dataset.submitting === 'true') {
+        console.log('Form submission already in progress, ignoring duplicate submission');
+        return;
+    }
+    
+    const submitButton = form.querySelector('button[type="submit"]');
+    console.log('Submit button:', submitButton);
+    
+    const originalButtonText = submitButton ? submitButton.innerHTML : '';
+    
+    try {
+        console.log('Starting form submission');
+        
+        // Mark form as submitting
+        form.dataset.submitting = 'true';
+        
+        // Disable submit button to prevent multiple submissions
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvataggio...';
+            console.log('Submit button disabled and loading state set');
+        } else {
+            console.warn('Submit button not found!');
         }
         
-        if (result && result.success) {
+        const formData = new FormData(form);
+        console.log('FormData entries:');
+        for (let [key, value] of formData.entries()) {
+            console.log(`- ${key}:`, value);
+        }
+        
+        const gameData = {};
+        
+        // Get all form fields including checkboxes and selects
+        for (let element of form.elements) {
+            // Skip buttons, file inputs, and fields without a name
+            if (element.tagName === 'BUTTON' || element.type === 'file' || !element.name) continue;
+            
+            let name = element.name.replace('[]', ''); // Remove array brackets for consistency
+            
+            // Map form field names to database column names if needed
+            const fieldMappings = {
+                'total-score': 'total_score',
+                'aesthetic-score': 'aesthetic_score',
+                'ost-score': 'ost_score',
+                'trophy-percentage': 'trophy_percentage',
+                'platinum-date': 'platinum_date',
+                'first-played': 'first_played',
+                'last-finished': 'last_finished',
+                'cover-url': 'cover_url'
+            };
+            
+            // Convert hyphenated names to snake_case for database compatibility
+            if (name.includes('-') && !fieldMappings[name]) {
+                name = name.replace(/-/g, '_');
+            } else if (fieldMappings[name]) {
+                name = fieldMappings[name];
+            }
+            
+            // Handle platform checkboxes
+            if (element.name === 'platform[]') {
+                if (!gameData.platforms) gameData.platforms = [];
+                if (element.checked) {
+                    gameData.platforms.push(element.value);
+                }
+                console.log('Processed platform checkbox:', element.value, 'checked:', element.checked, 'current platforms:', gameData.platforms);
+            } 
+            // Handle other checkboxes
+            else if (element.type === 'checkbox') {
+                gameData[element.name] = element.checked;
+            } else if (element.type === 'select-multiple') {
+                // Handle multi-select
+                gameData[name] = Array.from(element.selectedOptions).map(opt => opt.value);
+            } else if (element.type === 'number' || element.type === 'range') {
+                // Convert numeric fields to numbers
+                const value = element.value.trim();
+                gameData[name] = value === '' ? null : Number(value);
+            } else {
+                // Handle text, textarea, and other input types
+                const value = element.value.trim();
+                if (value !== '' || element.required) {
+                    gameData[name] = value === '' ? null : value;
+                }
+            }
+        }
+        
+        // Set section
+        gameData.section = form.dataset.section || currentSection;
+        console.log('Setting section to:', gameData.section);
+        
+        // Convert empty strings to null for optional fields
+        console.log('Raw game data before processing:', JSON.parse(JSON.stringify(gameData)));
+        
+        Object.keys(gameData).forEach(key => {
+            if (gameData[key] === '') {
+                console.log(`Converting empty string to null for key: ${key}`);
+                gameData[key] = null;
+            } else if (Array.isArray(gameData[key]) && gameData[key].length === 0) {
+                console.log(`Converting empty array to null for key: ${key}`);
+                gameData[key] = null;
+            }
+        });
+        
+        console.log('Final prepared game data for API:', JSON.parse(JSON.stringify(gameData)));
+        console.log('Current section:', currentSection);
+        console.log('Editing game ID:', editingGameId);
+        
+        try {
+            let result;
+            
+            // Handle new game creation
+            if (!editingGameId) {
+                // Convert platforms array to a comma-separated string for the API
+                if (gameData.platforms && Array.isArray(gameData.platforms)) {
+                    gameData.platform = gameData.platforms.join(', ');
+                    delete gameData.platforms; // Remove the platforms array as it's no longer needed
+                }
+                
+                // Create new game
+                result = await fetch('api/games_improved.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        ...gameData,
+                        section: currentSection
+                    })
+                });
+            } else {
+                // Update existing game
+                result = await updateGameDirectly(editingGameId, gameData);
+            }
+            
+            const responseData = await result.json();
+            console.log('API Response:', responseData);
+            
+            if (!result.ok) {
+                throw new Error(responseData.message || 'Errore durante il salvataggio del gioco');
+            }
+            
+            // Show success message
+            showNotification(editingGameId ? 'Gioco aggiornato con successo!' : 'Gioco aggiunto con successo!', 'success');
+            
+            // Close the modal and refresh the game list
             closeGameModal();
-            loadGames(gameData.section);
-            showNotification(result.message || 'Operazione completata con successo', 'success');
-        } else {
-            const errorMsg = result && result.error ? result.error : 
-                           (result && result.message ? result.message : 'Errore sconosciuto');
-            console.error('Server error:', errorMsg);
-            showNotification(`Errore: ${errorMsg}`, 'error');
+            loadGames(currentSection, true);
+            
+            return responseData;
+        } catch (error) {
+            console.error('Error updating game:', error);
+            showNotification(`Errore durante il salvataggio: ${error.message || 'Errore sconosciuto'}`, 'error');
+            throw error;
         }
     } catch (error) {
         console.error('Error in handleGameSubmit:', error);
         const errorMessage = error.message || 'Si è verificato un errore durante il salvataggio';
         showNotification(`Errore: ${errorMessage}`, 'error');
+    } finally {
+        // Reset form submission state
+        if (form) {
+            form.dataset.submitting = 'false';
+        }
+        
+        // Always re-enable the submit button
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.innerHTML = 'Salva Gioco';
+        }
     }
 }
 
@@ -975,20 +1375,48 @@ async function searchGameCover() {
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cercando...';
     button.disabled = true;
     
+    console.log('Avvio ricerca cover per:', title);
+    
     try {
-        const response = await fetch(`api/games.php?action=search_cover&title=${encodeURIComponent(title)}`);
-        const data = await response.json();
+        const response = await fetch('api/games_improved.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'search_cover', title: title })
+        });
         
-        if (data.success && data.cover_url) {
-            document.getElementById('game-cover').value = data.cover_url;
-            updateCoverPreview(data.cover_url);
+        if (!response.ok) {
+            throw new Error(`Errore HTTP: ${response.status}`);
+        }
+        
+        const responseData = await response.json();
+        console.log('Risposta API:', responseData);
+        
+        // Estrai l'URL della cover dalla risposta nidificata
+        const coverUrl = responseData.data?.data?.cover_url || 
+                        responseData.data?.cover_url || 
+                        responseData.cover_url ||
+                        responseData.data?.data?.background_image ||
+                        responseData.data?.background_image ||
+                        responseData.background_image;
+        
+        if (coverUrl) {
+            let cleanUrl = coverUrl.split('?')[0]; // Rimuovi i parametri dell'URL
+            
+            // Aggiungi automaticamente il path per il crop 600x400 se mancante
+            if (cleanUrl.includes('media.rawg.io/media/') && !cleanUrl.includes('crop/600/400/')) {
+                cleanUrl = cleanUrl.replace('media.rawg.io/media/', 'media.rawg.io/media/crop/600/400/');
+            }
+            
+            document.getElementById('game-cover').value = cleanUrl;
+            updateCoverPreview(cleanUrl);
             showNotification('Cover trovata!', 'success');
         } else {
-            showNotification('Nessuna cover trovata per questo titolo', 'warning');
+            console.error('Nessuna cover trovata nella risposta:', responseData);
+            showNotification('Nessuna copertina trovata per questo titolo', 'warning');
         }
     } catch (error) {
-        console.error('Error searching cover:', error);
-        showNotification('Errore nella ricerca della cover', 'error');
+        console.error('Errore durante la ricerca della cover:', error);
+        showNotification(`Errore: ${error.message}`, 'error');
     } finally {
         button.innerHTML = originalText;
         button.disabled = false;
@@ -1006,10 +1434,25 @@ function updateCoverPreview(url) {
 }
 
 async function moveGame(gameId, newSection) {
+    // Find the move button and show loading state
+    const moveButton = document.querySelector(`.move-game[data-id="${gameId}"]`);
+    const originalButtonContent = moveButton ? moveButton.innerHTML : null;
+    
+    if (moveButton) {
+        moveButton.disabled = true;
+        moveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    }
+    
     try {
-        const response = await fetch('api/games.php', {
+        const response = await fetch('api/games_improved.php', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'include',
+            mode: 'cors',
             body: JSON.stringify({
                 action: 'move',
                 id: gameId,
@@ -1017,44 +1460,105 @@ async function moveGame(gameId, newSection) {
             })
         });
         
-        const result = await response.json();
+        // Get the response text first for better error handling
+        const responseText = await response.text();
+        let result = {};
         
-        if (result.success) {
-            loadGames(currentSection, false);
-            showNotification(`Gioco spostato in ${newSection === 'played' ? 'Giocati' : 'Backlog'}`, 'success');
-        } else {
-            alert('Errore: ' + result.error);
+        try {
+            result = responseText ? JSON.parse(responseText) : {};
+        } catch (e) {
+            console.error('Error parsing response:', e, 'Response text:', responseText);
+            throw new Error('Errore nel formato della risposta del server');
         }
+        
+        if (!response.ok) {
+            const errorMsg = result.message || 
+                           result.error || 
+                           `Errore del server: ${response.status} ${response.statusText}`;
+            throw new Error(errorMsg);
+        }
+        
+        if (result.status !== 'success') {
+            throw new Error(result.message || 'Errore durante lo spostamento del gioco');
+        }
+        
+        // Update UI immediately for better UX
+        const gameCard = document.querySelector(`.game-card[data-id="${gameId}"]`);
+        if (gameCard) {
+            // Add fade out animation
+            gameCard.style.transition = 'opacity 0.3s ease';
+            gameCard.style.opacity = '0';
+            
+            // Remove from DOM after animation completes
+            setTimeout(() => {
+                gameCard.remove();
+                // Update counters
+                updateGameCounters();
+            }, 300);
+        }
+        
+        showNotification(
+            `Gioco spostato in ${newSection === 'played' ? 'Giocati' : 'Backlog'}`,
+            'success'
+        );
+        
+        // Reload the games list after a short delay
+        setTimeout(() => {
+            loadGames(currentSection, false);
+        }, 500);
+        
     } catch (error) {
         console.error('Error moving game:', error);
-        alert('Errore di connessione');
+        showNotification(
+            `Errore durante lo spostamento: ${error.message || 'Errore sconosciuto'}`,
+            'error',
+            5000
+        );
+    } finally {
+        // Restore the move button state
+        if (moveButton) {
+            moveButton.disabled = false;
+            if (originalButtonContent) {
+                moveButton.innerHTML = originalButtonContent;
+            } else {
+                moveButton.innerHTML = newSection === 'played' ? 
+                    '<i class="fas fa-arrow-left"></i> Sposta in Backlog' : 
+                    '<i class="fas fa-check"></i> Sposta in Giocati';
+            }
+        }
     }
 }
 
-async function deleteGame(gameId) {
-    if (!confirm('Sei sicuro di voler eliminare questo gioco?')) {
+function deleteGame(gameId) {
+    if (!confirm('Sei sicuro di voler eliminare questo gioco? Questa azione non può essere annullata.')) {
         return;
     }
     
-    try {
-        const response = await fetch('api/games.php', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: gameId })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            loadGames(currentSection, false);
-            showNotification('Gioco eliminato', 'success');
-        } else {
-            alert('Errore: ' + result.error);
-        }
-    } catch (error) {
-        console.error('Error deleting game:', error);
-        alert('Errore di connessione');
+    // Show loading state
+    const deleteButton = document.querySelector(`.delete-game[data-id="${gameId}"]`);
+    if (deleteButton) {
+        deleteButton.disabled = true;
+        deleteButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminazione...';
     }
+    
+    // Create a form for submission
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'api/games_improved.php?action=delete&id=' + encodeURIComponent(gameId);
+    
+    // Add CSRF token if available
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    if (csrfToken) {
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrf_token';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+    }
+    
+    // Submit the form
+    document.body.appendChild(form);
+    form.submit();
 }
 
 async function searchCoverForGame(gameId, gameTitle, section) {
@@ -1169,12 +1673,12 @@ async function handleTSVUpload(e) {
                 ${result.errors.length > 0 ? `<br><small>Errori: ${result.errors.join(', ')}</small>` : ''}
             `;
             
-            // Refresh the games list
+            // Reload games to show imported games
             loadGames('played', false);
         } else {
             statusDiv.className = 'import-status error';
             statusDiv.innerHTML = `
-                <i class="fas fa-exclamation-circle"></i>
+                <i class="fas fa-exclamation-triangle"></i>
                 <strong>Errore nell'importazione</strong>
                 <br><small>${result.error}</small>
                 ${result.errors ? `<br><small>${result.errors.join(', ')}</small>` : ''}
@@ -1184,8 +1688,8 @@ async function handleTSVUpload(e) {
         console.error('Error importing TSV:', error);
         statusDiv.className = 'import-status error';
         statusDiv.innerHTML = `
-            <i class="fas fa-exclamation-circle"></i>
-            <strong>Errore di connessione</strong>
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Errore di connessione durante l'importazione</strong>
         `;
     }
     
@@ -1366,6 +1870,18 @@ function loadSingleImage(gameId, imageUrl, title) {
     
 }
 
+// Update game counters in the UI
+function updateGameCounters() {
+    const sections = ['played', 'backlog'];
+    sections.forEach(section => {
+        const counterElement = document.querySelector(`.section-header[data-section="${section}"] .game-count`);
+        if (counterElement) {
+            const gameCards = document.querySelectorAll(`.games-container[data-section="${section}"] .game-card`);
+            counterElement.textContent = `(${gameCards.length})`;
+        }
+    });
+}
+
 // TSV Import functionality is handled directly by handleTSVUpload
 
 async function handleTSVFileSelect(event) {
@@ -1426,7 +1942,7 @@ async function uploadTSVFile(file) {
             `;
             
             // Reload games to show imported games
-            loadGames(currentSection);
+            loadGames('played', false);
             
             // Clear file input
             document.getElementById('tsv-file').value = '';
@@ -1439,12 +1955,10 @@ async function uploadTSVFile(file) {
                 <div class="error">
                     <i class="fas fa-exclamation-triangle"></i> 
                     ${data.error || 'Errore durante l\'importazione'}
-                    ${data.errors && data.errors.length > 0 ? 
-                        `<div class="error-details">
-                            <strong>Dettagli errori:</strong>
-                            <ul>${data.errors.map(error => `<li>${error}</li>`).join('')}</ul>
-                        </div>` : ''
-                    }
+                    ${data.errors ? `<div class="error-details">
+                        <strong>Dettagli errori:</strong>
+                        <ul>${data.errors.map(error => `<li>${error}</li>`).join('')}</ul>
+                    </div>` : ''}
                 </div>
             `;
             
@@ -1504,7 +2018,7 @@ async function findMissingCovers() {
 function openLoginModal() {
     const modal = document.getElementById('login-modal');
     modal.classList.add('active');
-    document.getElementById('login-username').focus();
+    document.getElementById('login-password').focus();
 }
 
 function closeLoginModal() {
@@ -1513,31 +2027,36 @@ function closeLoginModal() {
     document.getElementById('login-form').reset();
 }
 
-async function login(username, password) {
+async function login(password) {
     try {
         const response = await fetch('api/auth.php', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify({
                 action: 'login',
-                username: username,
                 password: password
-            })
+            }),
+            credentials: 'include'
         });
-        
+
+        if (!response.ok) {
+            throw new Error('Failed to login');
+        }
+
         const data = await response.json();
         
         if (data.success) {
-            showNotification('Login effettuato con successo!', 'success');
+            showNotification('Accesso admin attivato!', 'success');
             closeLoginModal();
             updateUIForAuthStatus(data.user);
             // Reload games to update the UI with admin actions
             loadGames(currentSection);
             return true;
         } else {
-            showNotification(data.error || 'Errore durante il login', 'error');
+            showNotification(data.error || 'Password non valida', 'error');
             return false;
         }
     } catch (error) {
@@ -1946,7 +2465,7 @@ async function loadStatistics() {
         }
         
         // First load the played games to get completion times
-        const gamesResponse = await fetch('api/games.php?action=list&section=played');
+        const gamesResponse = await fetch('api/games_improved.php?action=list&section=played');
         if (!gamesResponse.ok) {
             throw new Error(`HTTP error! status: ${gamesResponse.status}`);
         }
@@ -1968,14 +2487,14 @@ async function loadStatistics() {
         const data = await response.json();
         console.log('Received statistics data:', data);
         
-        if (data.success && gamesData.success) {
+        if (data.status === 'success' && gamesData.status === 'success') {
             // Add the played games to the data object for the completion time table
-            data.playedGames = gamesData.games;
+            const playedGames = gamesData.games || [];
             
             // Render all charts and tables
-            if (data.data.status) renderStatusChart(data.data.status);
-            if (data.data.platform) renderPlatformChart(data.data.platform);
-            if (data.data.difficulty) renderDifficultyChart(data.data.difficulty);
+            if (data.data.statusDistribution) renderStatusChart(data.data.statusDistribution);
+            if (data.data.platformDistribution) renderPlatformChart(data.data.platformDistribution);
+            if (data.data.difficultyDistribution) renderDifficultyChart(data.data.difficultyDistribution);
             if (data.data.topDifficultGames) renderDifficultGamesTable(data.data.topDifficultGames);
             if (data.data.topPlaytimeGames) renderPlaytimeTable(data.data.topPlaytimeGames);
             if (data.data.playedByYear) renderPlayedByYearChart(data.data.playedByYear);
@@ -1987,13 +2506,13 @@ async function loadStatistics() {
             }
             // Also render the data tables
             if (data.data) {
-                renderStatusTable(data.data.status);
-                renderPlatformTable(data.data.platform);
-                renderDifficultyTable(data.data.difficulty);
+                renderStatusTable(data.data.statusDistribution);
+                renderPlatformTable(data.data.platformDistribution);
+                renderDifficultyTable(data.data.difficultyDistribution);
                 
                 // Render fastest completions table if we have played games
-                if (data.playedGames) {
-                    renderFastestCompletionsTable(data.playedGames);
+                if (playedGames.length > 0) {
+                    renderFastestCompletionsTable(playedGames);
                 }
             }
         } else {
@@ -2215,12 +2734,15 @@ function renderDifficultyChart(difficultyData) {
     const labels = sortedDifficulties.map(item => item.difficulty || '0');
     const data = sortedDifficulties.map(item => item.count);
     
-    // Generate colors based on difficulty (red to green gradient)
+    // Generate colors based on difficulty (light to dark purple gradient)
     const difficultyColors = labels.map(difficulty => {
         const value = parseInt(difficulty) / 10; // Normalize to 0-1
-        const r = Math.round(255 * (1 - value));
-        const g = Math.round(255 * value);
-        return `rgba(${r}, ${g}, 0, 0.7)`;
+        // Base light purple: #e6d5ff (230, 213, 255)
+        // Target dark purple: #4b0082 (75, 0, 130)
+        const r = Math.round(230 - (230 - 75) * value);
+        const g = Math.round(213 - (213 - 0) * value);
+        const b = Math.round(255 - (255 - 130) * value);
+        return `rgba(${r}, ${g}, ${b}, 0.7)`;
     });
     
     difficultyChart = new Chart(ctx, {
@@ -2689,8 +3211,9 @@ function renderPlayedByYearChart(playedByYearData) {
 // Function to update game priority
 async function updateGamePriority(gameId, priority) {
     try {
-        const response = await fetch('api/games.php', {
-            method: 'PUT',
+        console.log(`Updating priority for game ${gameId} to ${priority}`);
+        const response = await fetch('api/games_improved.php', {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 action: 'update_priority',
@@ -2699,17 +3222,23 @@ async function updateGamePriority(gameId, priority) {
             })
         });
         
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
-        if (data.success) {
+        console.log('Update priority response:', data);
+        
+        if (data.status === 'success') {
             // Reload backlog to update the order
-            loadGames('backlog');
+            await loadGames('backlog');
             showNotification('Priorità aggiornata con successo!', 'success');
         } else {
-            throw new Error('Errore durante l\'aggiornamento della priorità');
+            throw new Error(data.message || 'Errore durante l\'aggiornamento della priorità');
         }
     } catch (error) {
         console.error('Error updating priority:', error);
-        showNotification('Errore durante l\'aggiornamento della priorità', 'error');
+        showNotification(`Errore durante l'aggiornamento della priorità: ${error.message}`, 'error');
     }
 }
 
@@ -2719,10 +3248,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (loginForm) {
         loginForm.addEventListener('submit', async function(e) {
             e.preventDefault();
-            const username = document.getElementById('login-username')?.value;
             const password = document.getElementById('login-password')?.value;
-            if (username && password) {
-                await login(username, password);
+            if (password) {
+                await login(password);
+            } else {
+                showNotification('Inserisci la password', 'error');
             }
         });
     }

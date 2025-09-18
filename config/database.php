@@ -1,15 +1,23 @@
 <?php
 // Database configuration
-define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_NAME', 'game_tracker');
+define('DB_HOST', 'sql112.infinityfree.com');
+define('DB_USER', 'if0_39711071');
+define('DB_PASS', 'lzSw0bSt1P2OkzX');
+define('DB_NAME', 'if0_39711071_tracker_database');
 
 // Create database connection
 function getConnection() {
     try {
-        $pdo = new PDO("mysql:host=" . DB_HOST, DB_USER, DB_PASS);
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo = new PDO(
+            "mysql:host=" . DB_HOST . ";charset=utf8mb4",
+            DB_USER,
+            DB_PASS,
+            [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+            ]
+        );
         return $pdo;
     } catch(PDOException $e) {
         die("Connection failed: " . $e->getMessage());
@@ -60,8 +68,24 @@ function initializeDatabase() {
 // Get database connection with selected database
 function getGameTrackerConnection() {
     try {
-        $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME, DB_USER, DB_PASS);
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $options = [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::MYSQL_ATTR_INIT_COMMAND => "SET CHARACTER SET utf8mb4"
+        ];
+        
+        $pdo = new PDO(
+            "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+            DB_USER,
+            DB_PASS,
+            $options
+        );
+        
+        // Ensure we're using UTF-8 for the connection
+        $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+        $pdo->exec("SET CHARACTER SET utf8mb4");
+        
         return $pdo;
     } catch(PDOException $e) {
         die("Connection failed: " . $e->getMessage());

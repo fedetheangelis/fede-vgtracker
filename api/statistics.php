@@ -1,6 +1,61 @@
 <?php
-header('Content-Type: application/json');
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 0); // Disable display_errors in production
+
+// Set CORS headers first
+$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
+$allowedOrigins = [
+    'https://fefvgtracker.infinityfree.me',
+    'http://localhost',
+    'http://127.0.0.1'
+];
+
+// Allow any origin in development, but restrict in production
+$origin = in_array($origin, $allowedOrigins) ? $origin : $allowedOrigins[0];
+
+header("Access-Control-Allow-Origin: $origin");
+header('Access-Control-Allow-Methods: GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+header('Access-Control-Allow-Credentials: true');
+header('Access-Control-Max-Age: 86400'); // Cache preflight for 24 hours
+header('Content-Type: application/json; charset=utf-8');
+
+// Add security headers
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('X-XSS-Protection: 1; mode=block');
+
+// Handle preflight requests for CORS
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    header('Access-Control-Allow-Origin: ' . $origin);
+    header('Access-Control-Allow-Methods: GET, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+    header('Access-Control-Allow-Credentials: true');
+    http_response_code(200);
+    exit(0);
+}
+
+// Function to send JSON response and exit
+function sendResponse($data, $statusCode = 200) {
+    http_response_code($statusCode);
+    echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit(0);
+}
+
 require_once '../config/database.php';
+
+// Function to send JSON response with proper encoding
+function sendJsonResponse($data, $statusCode = 200) {
+    http_response_code($statusCode);
+    echo json_encode($data, 
+        JSON_UNESCAPED_UNICODE | 
+        JSON_UNESCAPED_SLASHES |
+        JSON_INVALID_UTF8_SUBSTITUTE |
+        JSON_PARTIAL_OUTPUT_ON_ERROR
+    );
+    exit();
+}
 
 // Function to get all games from the database
 function getAllGames($pdo) {
@@ -280,6 +335,11 @@ function getPlayedByYear($pdo) {
 try {
     $pdo = getGameTrackerConnection();
     
+    // Set character set to UTF-8
+    $pdo->exec("SET NAMES 'utf8mb4'");
+    $pdo->exec("SET CHARACTER SET utf8mb4");
+    $pdo->exec("SET SESSION collation_connection = 'utf8mb4_unicode_ci'");
+    
     // Get all statistics
     $statusDistribution = getStatusDistribution($pdo);
     $platformDistribution = getPlatformDistribution($pdo);
@@ -289,13 +349,13 @@ try {
     $playedByYear = getPlayedByYear($pdo);
     $voteDistribution = getVoteDistribution($pdo);
     
-    // Prepare response
+    // Prepare and send success response
     $response = [
-        'success' => true,
+        'status' => 'success',
         'data' => [
-            'status' => $statusDistribution,
-            'platform' => $platformDistribution,
-            'difficulty' => $difficultyDistribution,
+            'statusDistribution' => $statusDistribution,
+            'platformDistribution' => $platformDistribution,
+            'difficultyDistribution' => $difficultyDistribution,
             'topDifficultGames' => $topDifficultGames,
             'topPlaytimeGames' => $topPlaytimeGames,
             'playedByYear' => $playedByYear,
@@ -303,16 +363,23 @@ try {
         ]
     ];
     
-    // Log the response for debugging
-    error_log('Statistics response: ' . json_encode($response, JSON_PRETTY_PRINT));
-    
-    echo json_encode($response);
+    sendJsonResponse($response);
     
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'error' => 'Database error: ' . $e->getMessage()
-    ]);
-}
-?>
+    error_log('Database error: ' . $e->getMessage());
+    error_log('Stack trace: ' . $e->getTraceAsString());
+    sendJsonResponse([
+        'status' => 'error',
+        'message' => 'Database error',
+        'error' => $e->getMessage()
+    ], 500);
+    
+} catch (Exception $e) {
+    error_log('Error: ' . $e->getMessage());
+    error_log('Stack trace: ' . $e->getTraceAsString());
+    sendJsonResponse([
+        'status' => 'error',
+        'message' => 'An error occurred while processing your request',
+        'error' => $e->getMessage()
+    ], 500);
+}?>

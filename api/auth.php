@@ -1,12 +1,43 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+// Set CORS headers first
+$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
+$allowedOrigins = [
+    'https://fefvgtracker.infinityfree.me',
+    'http://localhost',
+    'http://127.0.0.1'
+];
 
+// Allow any origin in development, but restrict in production
+$origin = in_array($origin, $allowedOrigins) ? $origin : $allowedOrigins[0];
+
+header("Access-Control-Allow-Origin: $origin");
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+header('Access-Control-Allow-Credentials: true');
+header('Access-Control-Max-Age: 86400'); // Cache preflight for 24 hours
+header('Content-Type: application/json; charset=utf-8');
+
+// Add security headers
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('X-XSS-Protection: 1; mode=block');
+
+// Handle preflight requests for CORS
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    header('Access-Control-Allow-Origin: ' . $origin);
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+    header('Access-Control-Allow-Credentials: true');
+    http_response_code(200);
+    exit(0);
+}
+
+// Function to send JSON response and exit
+function sendResponse($data, $statusCode = 200) {
+    http_response_code($statusCode);
+    echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit(0);
 }
 
@@ -22,10 +53,9 @@ switch ($action) {
             exit;
         }
         
-        $username = $input['username'] ?? '';
         $password = $input['password'] ?? '';
         
-        if (login($username, $password)) {
+        if (login($password)) {
             echo json_encode([
                 'success' => true,
                 'message' => 'Login successful',
@@ -35,7 +65,7 @@ switch ($action) {
             http_response_code(401);
             echo json_encode([
                 'success' => false,
-                'error' => 'Invalid username or password'
+                'error' => 'Password non valida'
             ]);
         }
         break;

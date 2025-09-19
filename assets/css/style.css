@@ -194,12 +194,12 @@ body {
 #difficultGamesTable th {
     color: var(--accent-primary);
     font-weight: 600;
-    background-color: rgba(50, 205, 50, 0.1);
+    background-color: rgba(165, 0, 165, 0.1);
     border-bottom: 2px solid var(--accent-primary);
 }
 
 #difficultGamesTable tbody tr:hover {
-    background-color: rgba(50, 205, 50, 0.08);
+    background-color: rgba(165, 0, 165, 0.1);
 }
 
 /* Remove background from status cells in all tables */

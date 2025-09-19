@@ -663,7 +663,7 @@ function createGameCard(game, section) {
                         ${game.aesthetic_score ? `<span class="score-item score-colored" style="background-color: ${getScoreColor(game.aesthetic_score)}">🌌 ${game.aesthetic_score}/100</span>` : ''}
                         ${game.ost_score ? `<span class="score-item score-colored" style="background-color: ${getScoreColor(game.ost_score)}">🎶 ${game.ost_score}/100</span>` : ''}
                         ${game.playtime ? `<span class="score-item">⏳ ${escapeHtml(game.playtime)}h</span>` : ''}
-                        ${game.difficulty ? `<span class="score-item score-colored" style="background-color: ${getDifficultyColor(game.difficulty)}">🔥 ${game.difficulty}/10</span>` : ''}
+                        ${game.difficulty !== null && game.difficulty !== undefined ? `<span class="score-item score-colored" style="background-color: ${getDifficultyColor(game.difficulty)}">🔥 ${game.difficulty}/10</span>` : ''}
                         ${game.trophy_percentage ? `<span class="score-item">🏆 ${game.trophy_percentage}%</span>` : ''}
                     </div>` : ''}
 
@@ -1296,18 +1296,21 @@ async function handleGameSubmit(e) {
         console.log('Editing game ID:', editingGameId);
         
         try {
-            let result;
+            let responseData;
             
-            // Handle new game creation
-            if (!editingGameId) {
-                // Convert platforms array to a comma-separated string for the API
+            if (editingGameId) {
+                // Update existing game
+                responseData = await updateGameDirectly(editingGameId, gameData);
+                console.log('API Response (Update):', responseData);
+            } else {
+                // Handle new game creation
                 if (gameData.platforms && Array.isArray(gameData.platforms)) {
                     gameData.platform = gameData.platforms.join(', ');
-                    delete gameData.platforms; // Remove the platforms array as it's no longer needed
+                    delete gameData.platforms;
                 }
                 
                 // Create new game
-                result = await fetch('api/games_improved.php', {
+                const response = await fetch('api/games_improved.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1320,16 +1323,13 @@ async function handleGameSubmit(e) {
                         section: currentSection
                     })
                 });
-            } else {
-                // Update existing game
-                result = await updateGameDirectly(editingGameId, gameData);
-            }
-            
-            const responseData = await result.json();
-            console.log('API Response:', responseData);
-            
-            if (!result.ok) {
-                throw new Error(responseData.message || 'Errore durante il salvataggio del gioco');
+                
+                responseData = await response.json();
+                console.log('API Response (Create):', responseData);
+                
+                if (!response.ok) {
+                    throw new Error(responseData.message || 'Errore durante il salvataggio del gioco');
+                }
             }
             
             // Show success message
@@ -2398,28 +2398,33 @@ function renderFastestCompletionsTable(games) {
         })
         .sort((a, b) => a.sortKey - b.sortKey) // Sort by total minutes (ascending)
         .slice(0, 15); // Get top 15 fastest
-    
+
     console.log('Filtered and sorted games with completion times:', gamesWithCompletion);
-    
+
     // Populate the table
     gamesWithCompletion.forEach((game, index) => {
         const tr = document.createElement('tr');
         const statusClass = getStatusClass(game.status);
-                // Add indicators to specific game titles
-            let displayTitle = escapeHtml(game.title);
-            if (game.title.includes('Spyro Reignited Trilogy')) {
-                displayTitle += ' (SP1)';
-            } else if (game.title.includes('Crash Bandicoot N.Sane Trilogy')) {
-                displayTitle += ' (CB2)';
-            }
-            
-            tr.innerHTML = `
-                <td>${index + 1}</td>
-                <td>${displayTitle}</td>
-                <td>${game.parsedCompletion.display}</td>
-                <td>${escapeHtml(game.platform || 'N/A')}</td>
-            `;
-        
+
+        // Remove bold styling from the 15th row
+        const isFifteenthRow = index === 14; // 0-based index
+        const rowStyle = isFifteenthRow ? 'style="font-weight: normal;"' : '';
+
+        // Add indicators to specific game titles
+        let displayTitle = escapeHtml(game.title);
+        if (game.title.includes('Spyro Reignited Trilogy')) {
+            displayTitle += ' (SP1)';
+        } else if (game.title.includes('Crash Bandicoot N.Sane Trilogy')) {
+            displayTitle += ' (CB2)';
+        }
+
+        tr.innerHTML = `
+            <td ${rowStyle}>${index + 1}</td>
+            <td ${rowStyle}>${displayTitle}</td>
+            <td ${rowStyle}>${game.parsedCompletion.display}</td>
+            <td ${rowStyle}>${escapeHtml(game.platform || 'N/A')}</td>
+        `;
+
         tbody.appendChild(tr);
     });
 }
@@ -2728,11 +2733,21 @@ function renderDifficultyChart(difficultyData) {
         difficultyChart.destroy();
     }
     
-    // Sort difficulties numerically
-    const sortedDifficulties = [...difficultyData].sort((a, b) => a.difficulty - b.difficulty);
+    // Ensure we have all difficulty levels from 0 to 10
+    const difficultyMap = {};
+    for (let i = 0; i <= 10; i++) {
+        difficultyMap[i] = 0; // Initialize all difficulties to 0
+    }
     
-    const labels = sortedDifficulties.map(item => item.difficulty || '0');
-    const data = sortedDifficulties.map(item => item.count);
+    // Fill in actual data
+    difficultyData.forEach(item => {
+        const diff = item.difficulty !== null && item.difficulty !== undefined ? parseInt(item.difficulty) : 0;
+        difficultyMap[diff] = parseInt(item.count) || 0;
+    });
+    
+    // Convert to arrays for the chart
+    const labels = Object.keys(difficultyMap);
+    const data = Object.values(difficultyMap);
     
     // Generate colors based on difficulty (light to dark purple gradient)
     const difficultyColors = labels.map(difficulty => {
@@ -2809,12 +2824,16 @@ function renderPlaytimeTable(games) {
         const statusClass = game.status ? game.status.toLowerCase().replace(/[\s/]+/g, '-') : '';
         const totalHours = game.total_playtime || parsePlaytime(game.playtime);
         
+        // Remove bold styling from the 15th row
+        const isFifteenthRow = index === 14; // 0-based index
+        const rowStyle = isFifteenthRow ? 'style="font-weight: normal;"' : '';
+        
         tr.innerHTML = `
-            <td>${index + 1}</td>
-            <td>${escapeHtml(game.title || 'N/A')}</td>
-            <td>${totalHours} ore</td>
-            <td>${escapeHtml(game.platform || 'N/A')}</td>
-            <td class="status-${statusClass}">${escapeHtml(game.status || 'N/A')}</td>
+            <td ${rowStyle}>${index + 1}</td>
+            <td ${rowStyle}>${escapeHtml(game.title || 'N/A')}</td>
+            <td ${rowStyle}>${totalHours} ore</td>
+            <td ${rowStyle}>${escapeHtml(game.platform || 'N/A')}</td>
+            <td class="status-${statusClass}" ${rowStyle}>${escapeHtml(game.status || 'N/A')}</td>
         `;
         
         tbody.appendChild(tr);
@@ -2949,14 +2968,30 @@ function renderDifficultyTable(difficultyData) {
     const container = document.getElementById('difficultyTable');
     let html = '<table><tr><th>Difficoltà</th><th>Conteggio</th><th>Percentuale</th></tr>';
     
-    const total = difficultyData.reduce((sum, item) => sum + parseInt(item.count), 0);
+    // Create a map of all difficulties from 0 to 10
+    const difficultyMap = {};
+    for (let i = 0; i <= 10; i++) {
+        difficultyMap[i] = { difficulty: i, count: 0 };
+    }
     
-    // Sort difficulties numerically
-    const sortedDifficulties = [...difficultyData].sort((a, b) => a.difficulty - b.difficulty);
+    // Update with actual data
+    difficultyData.forEach(item => {
+        const diff = item.difficulty !== null && item.difficulty !== undefined ? parseInt(item.difficulty) : 0;
+        difficultyMap[diff] = { 
+            difficulty: diff, 
+            count: parseInt(item.count) || 0 
+        };
+    });
+    
+    // Convert to array and sort
+    const sortedDifficulties = Object.values(difficultyMap).sort((a, b) => a.difficulty - b.difficulty);
+    
+    // Calculate total from all difficulties (including 0s)
+    const total = sortedDifficulties.reduce((sum, item) => sum + item.count, 0);
     
     sortedDifficulties.forEach(item => {
-        const difficulty = item.difficulty || '0';
-        const count = parseInt(item.count);
+        const difficulty = item.difficulty.toString();
+        const count = item.count;
         const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
         
         html += `
@@ -2979,7 +3014,7 @@ function renderDifficultyTable(difficultyData) {
     container.innerHTML = html;
 }
 
-// Render vote distribution chart
+// Render vote distribution chart with combined 90-100 range and color gradient
 function renderVoteDistributionChart(voteData) {
     console.log('Rendering vote distribution chart with data:', voteData);
     
@@ -3008,14 +3043,65 @@ function renderVoteDistributionChart(voteData) {
         window.voteDistributionChart.destroy();
     }
     
-    // Prepare data for the chart
-    const labels = voteData.map(item => item.range);
-    const counts = voteData.map(item => item.count);
+    // Combine 90-99 and 100 into a single 90-100 range
+    const processedData = [];
+    let combined90to100 = 0;
     
-    // Create gradient for the bars
-    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-    gradient.addColorStop(0, 'rgba(78, 115, 223, 0.8)');
-    gradient.addColorStop(1, 'rgba(28, 200, 138, 0.2)');
+    voteData.forEach(item => {
+        if (item.range === '90-99' || item.range === '100') {
+            combined90to100 += parseInt(item.count);
+        } else {
+            processedData.push(item);
+        }
+    });
+    
+    // Add the combined 90-100 range
+    if (combined90to100 > 0) {
+        processedData.push({ range: '90-100', count: combined90to100.toString() });
+    }
+    
+    // Sort the data by range
+    processedData.sort((a, b) => {
+        const numA = parseInt(a.range.split('-')[0]);
+        const numB = parseInt(b.range.split('-')[0]);
+        return numA - numB;
+    });
+    
+    const labels = processedData.map(item => item.range);
+    const counts = processedData.map(item => parseInt(item.count));
+    
+    // Create color gradient from red to yellow to green
+    const getColorForIndex = (index, total) => {
+        // Define color stops
+        const startColor = {r: 230, g: 124, b: 115}; // #E67C73 (red)
+        const middleColor = {r: 255, g: 235, b: 132}; // #FFEB84 (yellow)
+        const endColor = {r: 87, g: 187, b: 138}; // #57BB8A (green)
+        
+        // Calculate position in the gradient (0 to 1)
+        const position = index / (total - 1);
+        
+        // Interpolate between colors based on position
+        let r, g, b;
+        if (position < 0.5) {
+            // First half: red to yellow
+            const p = position * 2;
+            r = Math.round(startColor.r + (middleColor.r - startColor.r) * p);
+            g = Math.round(startColor.g + (middleColor.g - startColor.g) * p);
+            b = Math.round(startColor.b + (middleColor.b - startColor.b) * p);
+        } else {
+            // Second half: yellow to green
+            const p = (position - 0.5) * 2;
+            r = Math.round(middleColor.r + (endColor.r - middleColor.r) * p);
+            g = Math.round(middleColor.g + (endColor.g - middleColor.g) * p);
+            b = Math.round(middleColor.b + (endColor.b - middleColor.b) * p);
+        }
+        
+        return `rgba(${r}, ${g}, ${b}, 0.8)`; // Semi-transparent fill
+    };
+    
+    // Create color arrays for all bars
+    const backgroundColors = labels.map((_, index) => getColorForIndex(index, labels.length));
+    const borderColors = backgroundColors.map(color => color.replace('0.8', '1')); // Opaque borders
     
     // Create the chart
     window.voteDistributionChart = new Chart(ctx, {
@@ -3025,8 +3111,8 @@ function renderVoteDistributionChart(voteData) {
             datasets: [{
                 label: 'Numero di giochi',
                 data: counts,
-                backgroundColor: gradient,
-                borderColor: 'rgba(78, 115, 223, 1)',
+                backgroundColor: backgroundColors,
+                borderColor: borderColors,
                 borderWidth: 1,
                 borderRadius: 4,
                 barPercentage: 0.8,

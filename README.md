@@ -1,3 +1,46 @@
+## [2025-09-19] - # FEDE'S VG TRACKER - VERSIONE 1.0.4
+
+### Miglioramenti al Sistema
+- **Correzione Fuso Orario**:
+  - Impostato il fuso orario predefinito su 'Europe/Rome' in tutto il sistema
+  - Corretta la visualizzazione degli orari per mostrare l'ora italiana corretta
+  - Aggiornato il sistema di salvataggio dei timestamp per garantire la coerenza temporale
+  - Aggiunta gestione esplicita della timezone per evitare discrepanze tra server e client
+
+## [2025-09-19] - # FEDE'S VG TRACKER - VERSIONE 1.0.3
+
+### Miglioramenti Grafici
+- **Nuovo Stile Tabella Giochi Difficili**: 
+  - Sostituito il tema verde con un tema viola per la tabella dei giochi più difficili
+  - Migliorato il contrasto per una migliore leggibilità
+  - Aggiornato lo stile al passaggio del mouse per coerenza con il nuovo tema
+  - Modificati i colori dei grafici per una migliore distinzione visiva
+
+### Miglioramenti Funzionali
+- **Visualizzazione Difficoltà**:
+  - Aggiunta la visualizzazione esplicita della difficoltà con il formato "X/10"
+  - I giochi senza difficoltà impostata mostrano ora "0/10" invece di essere nascosti
+  - Migliorata la formattazione dei valori numerici nei grafici
+
+### Correzioni di Bug
+- **Stile Riga 15**: 
+  - Corretto lo stile della 15° riga nelle tabelle per rimuovere il grassetto indesiderato
+  - Applicata la correzione sia alla tabella dei giochi con più ore di gioco che a quella dei giochi platinati più velocemente
+  - Migliorata la coerenza visiva tra le diverse tabelle
+
+- **Tabella dei Voti**:
+  - Corretta la formattazione della tabella di distribuzione dei voti
+  - Aggiunta la visualizzazione corretta delle fasce di voto (0-9, 10-19, ..., 100)
+  - Migliorata la leggibilità delle etichette degli assi
+  - Aggiunta la legenda esplicativa per le fasce di voto
+  - Corretti i calcoli delle percentuali nella tabella riassuntiva
+
+- **Aggiornamento Dati Giochi**:
+  - Risolto il problema che impediva l'aggiornamento dei valori dei giochi
+  - Corretta la gestione dei valori numerici nei form
+  - Aggiunta validazione per prevenire l'invio di dati non validi
+  - Migliorato il feedback all'utente durante le operazioni di aggiornamento
+
 ## [2025-09-18] - # FEDE'S VG TRACKER - RELEASE 1.0.0
 
 ### Novità in questa Versione

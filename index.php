@@ -352,7 +352,13 @@ initializeDatabase();
                     }
                     ?>
                     <div class="last-update">
-                        <small>Ultimo aggiornamento: <?php echo date('d/m/Y H:i', strtotime($metadata['last_updated'])); ?></small>
+                        <?php 
+                        // Set the timezone to Rome for this display
+                        date_default_timezone_set('Europe/Rome');
+                        $date = new DateTime($metadata['last_updated']);
+                        $date->setTimezone(new DateTimeZone('Europe/Rome'));
+                        ?>
+                        <small>Ultimo aggiornamento: <?php echo $date->format('d/m/Y H:i'); ?></small>
                     </div>
                 </div>
                 <div class="info-content">
@@ -435,7 +441,13 @@ initializeDatabase();
                 <div class="section-header">
                     <h2>Changelog</h2>
                     <div class="last-update">
-                        <small>Ultimo aggiornamento: <?php echo date('d/m/Y H:i', strtotime($metadata['last_updated'])); ?></small>
+                        <?php 
+                        // Set the timezone to Rome for this display
+                        date_default_timezone_set('Europe/Rome');
+                        $date = new DateTime($metadata['last_updated']);
+                        $date->setTimezone(new DateTimeZone('Europe/Rome'));
+                        ?>
+                        <small>Ultimo aggiornamento: <?php echo $date->format('d/m/Y H:i'); ?></small>
                     </div>
                 </div>
                 <div class="changelog-content">

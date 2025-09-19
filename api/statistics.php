@@ -152,7 +152,7 @@ function getPlatformDistribution($pdo) {
 
 // Function to get difficulty distribution
 function getDifficultyDistribution($pdo) {
-    $stmt = $pdo->query("SELECT difficulty, COUNT(*) as count FROM games WHERE difficulty IS NOT NULL AND difficulty != '' GROUP BY difficulty ORDER BY difficulty");
+    $stmt = $pdo->query("SELECT difficulty, COUNT(*) as count FROM games WHERE difficulty IS NOT NULL AND (difficulty != '' OR difficulty = 0) GROUP BY difficulty ORDER BY difficulty");
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 

@@ -1,4 +1,7 @@
 <?php
+// Set the default timezone to Rome
+date_default_timezone_set('Europe/Rome');
+
 function updateSiteTimestamp() {
     $file = __DIR__ . '/../site_metadata.json';
     $data = [

@@ -1,4 +1,4 @@
-# Documentazione Completa Game Tracker
+# Documentazione Completa Fede's Game Tracker
 
 ## Indice
 1. [Panoramica](#panoramica)
@@ -221,10 +221,49 @@ game-tracker/
 ## Specifiche Tecniche
 
 ### Requisiti di Sistema
-- PHP 7.4+
-- MySQL 5.7+ / MariaDB 10.3+
-- Estensione PDO abilitata
-- mod_rewrite abilitato (per URL puliti)
+- **PHP 8.0+** con le seguenti estensioni:
+  - PDO
+  - JSON
+  - cURL
+  - intl (per la gestione dei fusi orari)
+  - mbstring (per la gestione dei caratteri multibyte)
+- **Database**:
+  - MySQL 5.7+ / MariaDB 10.3+ con supporto JSON
+  - Supporto per UTF-8 completo (utf8mb4)
+- **Server Web**:
+  - Apache con mod_rewrite abilitato
+  - Configurazione consigliata:
+    - memory_limit: almeno 128M
+    - max_execution_time: almeno 60s
+    - upload_max_filesize: almeno 10M
+- **Configurazione Timezone**:
+  - Timezone di sistema impostato su Europe/Rome
+  - Configurazione PHP con `date.timezone = "Europe/Rome"`
+
+### Architettura del Sistema
+
+#### Struttura delle Cartelle
+```
+/
+├── api/                    # Endpoint API
+│   ├── auth.php           # Gestione autenticazione
+│   ├── games_improved.php # Gestione giochi (CRUD)
+│   ├── import.php         # Importazione dati
+│   └── statistics.php     # Statistiche
+├── assets/               # File statici
+│   ├── css/              # Fogli di stile
+│   └── js/               # Script JavaScript
+│       └── app.js        # Logica principale frontend
+├── config/               # File di configurazione
+│   └── database.php      # Configurazione database
+├── includes/             # File PHP inclusi
+│   ├── auth.php         # Funzioni di autenticazione
+│   ├── functions.php    # Funzioni di utilità
+│   ├── site_metadata.php# Gestione metadati
+│   └── update_timestamp.php # Gestione timestamp
+├── index.php            # Punto di ingresso
+└── DOCUMENTAZIONE_COMPLETA.md # Questa documentazione
+```
 
 ### Struttura Dati
 ```json
@@ -311,11 +350,25 @@ CREATE TABLE games (
 
 ## Sicurezza
 
-### Misure Implementate
-1. **Autenticazione**
-   - Hash password con bcrypt
-   - Token JWT per le sessioni
-   - Scadenza sessione configurable
+### Misure di Sicurezza Implementate
+
+1. **Autenticazione e Autorizzazione**
+   - Hash password con bcrypt (costo 12)
+   - Token JWT per le sessioni con scadenza configurabile
+   - Protezione contro attacchi brute force
+   - Validazione rigorosa di tutti gli input
+   - Controllo degli accessi basato sui ruoli
+   - Protezione contro attacchi XSS (Cross-Site Scripting)
+   - Validazione dei form lato client e server
+   - Protezione CSRF (Cross-Site Request Forgery)
+   - Headers di sicurezza HTTP (CSP, HSTS, X-Content-Type-Options)
+   - Sanitizzazione degli output
+   - Logging degli accessi falliti
+   - Timeout di sessione automatico
+   - Protezione contro attacchi di tipo Clickjacking
+   - Validazione degli URL esterni
+   - Limitazione dei tentativi di accesso
+   - Validazione degli input temporali con controllo del fuso orario
 
 2. **Protezione Dati**
    - Prepared statements per tutte le query
@@ -365,10 +418,87 @@ CREATE TABLE games (
    ```bash
    cp .env.example .env
    php artisan key:generate
+   
+   # Impostare il timezone su Europe/Rome
+   echo 'date.timezone = "Europe/Rome"' >> /etc/php/8.2/apache2/conf.d/timezone.ini
    ```
-5. Configurare il server web per puntare alla cartella `public/`
+5. Verificare la configurazione del timezone:
+   ```bash
+   php -r "echo ini_get('date.timezone');"  # Dovrebbe mostrare Europe/Rome
+   ```
+6. Configurare il server web per puntare alla cartella `public/`
 
-## Manutenzione
+## Manutenzione e Monitoraggio
+
+### Verifica Configurazione
+
+#### Timezone
+```bash
+# Verifica timezone PHP
+php -r "echo ini_get('date.timezone');"
+
+# Verifica timezone MySQL
+mysql -e "SELECT @@global.time_zone, @@session.time_zone;"
+```
+
+#### Monitoraggio Prestazioni
+- **Log PHP**: `/var/log/php_errors.log`
+- **Log Accessi**: `/var/log/apache2/access.log`
+- **Log Errori**: `/var/log/apache2/error.log`
+
+### Backup
+
+#### Database
+```bash
+# Backup completo
+mysqldump -u [utente] -p[password] [database] > backup_$(date +%Y%m%d).sql
+
+# Backup automatico giornaliero
+0 2 * * * mysqldump -u [utente] -p[password] [database] > /backup/db_backup_$(date +\%Y\%m\%d).sql
+```
+
+#### File di Configurazione
+```bash
+# Backup dei file di configurazione
+tar -czvf config_backup_$(date +%Y%m%d).tar.gz /percorso/config/
+```
+
+### Aggiornamenti
+
+1. **Backup**
+   - Eseguire il backup del database
+   - Fare una copia dei file di configurazione
+
+2. **Aggiornamento**
+   ```bash
+   git pull origin main
+   composer install --no-dev
+   php artisan migrate
+   php artisan cache:clear
+   php artisan view:clear
+   ```
+
+3. **Verifica**
+   - Controllare i log per errori
+   - Verificare il funzionamento delle funzionalità principali
+   - Controllare che i permessi dei file siano corretti
+
+### Manutenzione Programmata
+
+#### Ogni Giorno
+- Pulizia dei file temporanei
+- Rotazione dei log
+- Backup incrementale
+
+#### Ogni Settimana
+- Ottimizzazione del database
+- Pulizia delle cache
+- Verifica degli aggiornamenti di sicurezza
+
+#### Ogni Mese
+- Analisi delle prestazioni
+- Verifica dello spazio su disco
+- Aggiornamento delle dipendenze
 
 ### Aggiornamenti
 1. Backup del database
@@ -386,5 +516,59 @@ CREATE TABLE games (
 - Backup incrementali dei file di configurazione
 - Archiviazione esterna crittografata
 
+## Risoluzione dei Problemi
+
+### Problemi Comuni e Soluzioni
+
+#### Timezone Non Corretto
+**Sintomi**: Gli orari visualizzati non corrispondono a quelli italiani
+**Soluzione**:
+1. Verificare la configurazione del timezone in PHP:
+   ```bash
+   php -i | grep date.timezone
+   ```
+2. Se necessario, modificare il file php.ini:
+   ```ini
+   date.timezone = "Europe/Rome"
+   ```
+3. Riavviare il server web:
+   ```bash
+   sudo systemctl restart apache2
+   ```
+
+#### Errori di Connessione al Database
+**Sintomi**: Impossibile connettersi al database
+**Soluzione**:
+1. Verificare le credenziali in `config/database.php`
+2. Controllare che il servizio MySQL sia in esecuzione:
+   ```bash
+   sudo systemctl status mysql
+   ```
+3. Verificare i log di MySQL:
+   ```bash
+   sudo tail -f /var/log/mysql/error.log
+   ```
+
+#### Problemi di Autorizzazione
+**Sintomi**: Accesso negato o permessi insufficienti
+**Soluzione**:
+1. Verificare i permessi delle cartelle:
+   ```bash
+   chmod -R 755 /percorso/del/progetto
+   chown -R www-data:www-data /percorso/del/progetto
+   ```
+2. Verificare le impostazioni di SELinux/AppArmor se attive
+
 ---
-*Documentazione aggiornata all'11/08/2025*
+*Documentazione aggiornata al 19/09/2025 - Versione 1.0.4*
+
+### Note Importanti
+- **Time Zone**: Tutti gli orari sono gestiti nel fuso orario Europe/Rome (CET/CEST)
+- **Backup**: Eseguire regolarmente il backup del database
+- **Sicurezza**: Mantenere aggiornato il sistema e le dipendenze
+- **Supporto**: Per problemi o richieste di assistenza, contattare l'amministratore di sistema
+
+### Licenza
+Questo software è protetto da licenza. Tutti i diritti riservati.
+
+© 2025 Fede's Game Tracker - Tutti i diritti riservati
